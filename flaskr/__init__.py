@@ -1,4 +1,5 @@
 import os
+import base64
 
 from seal import *
 from seal_helper_outer import *
@@ -27,12 +28,37 @@ def create_app(test_config=None):
     except OSError:
         pass
 
+    parms = EncryptionParameters(scheme_type.BFV)
+    poly_modulus_degree = 4096
+    parms.set_poly_modulus_degree(poly_modulus_degree)
+    parms.set_coeff_modulus(CoeffModulus.BFVDefault(poly_modulus_degree))
+    parms.set_plain_modulus(512)
+    context = SEALContext.Create(parms)
+    print_parameters(context)
+    
     # a simple page that says hello
     @app.route('/hello')
     def hello():
         return 'Hello, World!'
-	
-    #return app
+
+    @app.route('/generateKeys')
+    def generateKeys():
+        keygen = KeyGenerator(context)
+        public_key = keygen.public_key()
+        secret_key = keygen.secret_key()
+        encryptor = Encryptor(context, public_key)
+        decryptor = Decryptor(context, secret_key)
+        return {"public_key: ", public_key, "secret_key: ", secret_key}
+
+    def processBase64String(string):
+        decoded_string = base64.decode(string)
+        return decoded_string
+    
+    @app.route('/average')
+    def average(base64String):
+        decoded_string = processBase64String(base64String)
+        sum, length = add(decoded_string)
+        return sum/length
 
     @app.route('/test')
     def test():
