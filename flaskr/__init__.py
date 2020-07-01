@@ -6,7 +6,6 @@ from seal_helper_outer import *
 
 from flask import Flask
 
-
 def create_app(test_config=None):
     # create and configure the app
     app = Flask(__name__, instance_relative_config=True)
@@ -35,6 +34,8 @@ def create_app(test_config=None):
     parms.set_plain_modulus(512)
     context = SEALContext.Create(parms)
     print_parameters(context)
+
+    scale = pow(2.0, 40)
     
     # a simple page that says hello
     @app.route('/hello')
@@ -59,6 +60,46 @@ def create_app(test_config=None):
         decoded_string = processBase64String(base64String)
         sum, length = add(decoded_string)
         return sum/length
+
+    @app.route('/add')
+    def add(encresult, context):
+        evaluator = Evaluator(context)
+        encsum = Ciphertext()
+
+        evaluator.add_many(encresult, encsum)
+
+        return encsum 
+
+    @app.route('/encrypt')
+    def encrypt(vector, scale, context, public_key):
+        #convert to Double Vector
+        dvector = DoubleVector()
+        for num in vector:
+            dvector.append(num)
+
+        #initialize objects
+        
+        encoder = CKKSEncoder(context)
+        encryptor = Encryptor(context, public_key) 
+
+        x_plain = Plaintext()
+        x_encrypted = Ciphertext()
+
+        #list of encrypted values or encrypted list? <-- Design Choice
+        encoder.encode(dvector, scale, x_plain)
+        encryptor.encrypt(x_plain, x_encrypted)
+
+        return (x_encrypted, len(vector)) #enc = EncryptedVector(len(vector), dvector)
+    
+    @app.route('/decrypt')
+    def decrypt(encresult, context, secret_key):
+        decryptor = Decryptor(context, secret_key)
+        plainresult = Plaintext()
+
+        decryptor.decrypt(encresult, plainresult)
+
+        #can return a vectorized result?
+        return plainresult
 
     @app.route('/test')
     def test():
