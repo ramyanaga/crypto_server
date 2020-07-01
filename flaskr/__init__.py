@@ -48,17 +48,62 @@ def create_app(test_config=None):
         secret_key = keygen.secret_key()
         encryptor = Encryptor(context, public_key)
         decryptor = Decryptor(context, secret_key)
-        return {"public_key: ", public_key, "secret_key: ", secret_key}
+        return [public_key, secret_key]
+        #return {"public_key: ", public_key, "secret_key: ", secret_key}
 
-    def processBase64String(string):
-        decoded_string = base64.decode(string)
-        return decoded_string
+    def decodeBase64Val(val):
+        return base64.decode(val)
     
-    @app.route('/average')
-    def average(base64String):
-        decoded_string = processBase64String(base64String)
-        sum, length = add(decoded_string)
-        return sum/length
+    def decodeBase64List(encodedList):
+        decodedList = [base64.decode(val) for val in encodedList]
+        return decodedList
+
+    
+    #@app.route('/average')
+    def average(encryptedVals, context):
+        evaluator = Evaluator(context)
+        encavg = add(encryptedVals, context)
+        evaluator.multiply_place(encavg, 1/len(encryptedVals))
+        return encavg
+
+    #@app.route('/add')
+    def add(encryptedVals, context):
+        evaluator = Evaluator(context)
+        encsum = Ciphertext()
+        for i in range(len(encryptedVals)):
+            evaluator.add_inplace(encsum, encryptedVals[i])
+        return encsum 
+
+    @app.route('/encrypt')
+    def encrypt(vector, scale, context, public_key):
+        #convert to Double Vector
+        dvector = DoubleVector()
+        for num in vector:
+            dvector.append(num)
+
+        #initialize objects
+        
+        encoder = CKKSEncoder(context)
+        encryptor = Encryptor(context, public_key) 
+
+        x_plain = Plaintext()
+        x_encrypted = Ciphertext()
+
+        #list of encrypted values or encrypted list? <-- Design Choice
+        encoder.encode(dvector, scale, x_plain)
+        encryptor.encrypt(x_plain, x_encrypted)
+
+        return (x_encrypted, len(vector)) #enc = EncryptedVector(len(vector), dvector)
+    
+    @app.route('/decrypt')
+    def decrypt(encresult, context, secret_key):
+        decryptor = Decryptor(context, secret_key)
+        plainresult = Plaintext()
+
+        decryptor.decrypt(encresult, plainresult)
+
+        #can return a vectorized result?
+        return plainresult
 
     @app.route('/test')
     def test():
