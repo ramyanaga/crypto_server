@@ -26,27 +26,52 @@ def create_app(test_config=None):
         os.makedirs(app.instance_path)
     except OSError:
         pass
+    
+    parms = EncryptionParameters(scheme_type.CKKS)
 
-    parms = EncryptionParameters(scheme_type.BFV)
-    poly_modulus_degree = 4096
+    poly_modulus_degree = 8192
     parms.set_poly_modulus_degree(poly_modulus_degree)
-    parms.set_coeff_modulus(CoeffModulus.BFVDefault(poly_modulus_degree))
-    parms.set_plain_modulus(512)
-    context = SEALContext.Create(parms)
-    print_parameters(context)
+    parms.set_coeff_modulus(CoeffModulus.Create(
+        poly_modulus_degree, [60, 40, 40, 60]))
 
     scale = pow(2.0, 40)
+    context = SEALContext.Create(parms)
+
+    # parms = EncryptionParameters(scheme_type.BFV)
+    # poly_modulus_degree = 4096
+    # parms.set_poly_modulus_degree(poly_modulus_degree)
+    # parms.set_coeff_modulus(CoeffModulus.BFVDefault(poly_modulus_degree))
+    # parms.set_plain_modulus(512)
+    # context = SEALContext.Create(parms)
+    # print_parameters(context)
     
     # a simple page that says hello
     @app.route('/hello')
     def hello():
         return 'Hello, World!'
 
+    @app.route('/compute', methods=['POST', 'GET'])
+    def computation():
+        try:
+            searchword = request.args.get('key', '')
+        except KeyError:
+            return "Invalid Request"
+
+        if searchword == "ADD":
+
+        elif searchword == "AVERAGE":
+        
+        elif searchword == "MULTIPLY":
+            #TODO
+            pass 
+
     @app.route('/generateKeys')
     def generateKeys():
         keygen = KeyGenerator(context)
         public_key = keygen.public_key()
         secret_key = keygen.secret_key()
+        relin_keys = keygen.relin_keys()
+
         encryptor = Encryptor(context, public_key)
         decryptor = Decryptor(context, secret_key)
         return [public_key, secret_key]
