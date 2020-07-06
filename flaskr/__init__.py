@@ -87,10 +87,10 @@ def create_app(test_config=None):
             public_key_bytes = f.read()
         with open("secret_key_bytes", "rb") as f:
             secret_key_bytes = f.read()
-        with open("public_key_bytes_temp.txt", "w") as f:
-            f.write(str(public_key_bytes))
-        with open("secret_key_bytes_temp.txt", "w") as f:
-            f.write(str(secret_key_bytes))
+        with open("public_key_bytes_temp", "wb") as f:
+            f.write(public_key_bytes)
+        with open("secret_key_bytes_temp", "wb") as f:
+            f.write(secret_key_bytes)
         print(public_key_bytes)
         print(secret_key_bytes)
         #key_dict = {"public_key_bytes": str(public_key_bytes),
@@ -109,22 +109,15 @@ def create_app(test_config=None):
     @app.route('/encrypt', methods=['GET', 'POST'])
     def encrypt():
     #def encrypt(scale, context):
-        print("request.args: ", request.args)
-        print("request.form: ", request.form)
-        print("request.files: ", request.files)
-        print("request.json: ", request.json)
-        print("request.data: ", request.data)
-        print("type of request data: ", type(request.data))
-        print("all data: ", request.get_data())
         scale = pow(2.0, 40)
         context = SEALContext.Create(parms)
         #convert to Double Vector
-        public_key_bytes = request.form.get('public_key')
-        public_key_bytes = bytes(public_key_bytes, 'utf-8')
-        vector = request.form.get('vector') # probably should name this something more informative
+        public_key_bytes = request.data
+        #vector = request.form.get('vector') # probably should name this something more informative
+        vector = request.args.getlist('vector') # will end up being list of strings
         dvector = DoubleVector()
         for num in vector:
-            dvector.append(num)
+            dvector.append(float(num))
 
         #initialize encoder
         encoder = CKKSEncoder(context)
@@ -142,8 +135,13 @@ def create_app(test_config=None):
         #list of encrypted values or encrypted list? <-- Design Choice
         encoder.encode(dvector, scale, x_plain)
         encryptor.encrypt(x_plain, x_encrypted)
+    
+        x_encrypted.save("encrypt_bytes")
+        with open("encrypt_bytes", "rb") as f:
+            x_encrypted_bytes = f.read()
+        
+        return json.dumps({"x_encrypted": str(x_encrypted_bytes), "vector_length": len(vector)})
 
-        return (x_encrypted, len(vector)) #enc = EncryptedVector(len(vector), dvector)
     
     @app.route('/decrypt')
     #def decrypt(encresult, context, secret_key_bytes):
