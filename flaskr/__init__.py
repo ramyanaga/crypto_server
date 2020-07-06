@@ -65,6 +65,10 @@ def create_app(test_config=None):
             #TODO
             pass 
 
+    '''
+    write public key to file, write secret key to file
+    return base64encoded version of those 2 files
+    '''
     @app.route('/generateKeys')
     def generateKeys():
         keygen = KeyGenerator(context)
@@ -74,7 +78,16 @@ def create_app(test_config=None):
 
         encryptor = Encryptor(context, public_key)
         decryptor = Decryptor(context, secret_key)
-        return [public_key, secret_key]
+        #public_key_bytes = bytarray(public_key)
+        #secret_key_bytes = byte
+        public_key.save('public_key_file')
+        private_key.save('private_key_file')
+        with open("public_key_file", "rb") as f:
+            public_key_bytes = f.read()
+        with open("private_key_file", "rb") as f:
+            private_key_bytes = f.read()
+        return [public_key_bytes, private_key_bytes]
+        #return [public_key, secret_key]
         #return {"public_key: ", public_key, "secret_key: ", secret_key}
 
     def decodeBase64Val(val):
@@ -83,93 +96,147 @@ def create_app(test_config=None):
     def decodeBase64List(encodedList):
         decodedList = [base64.decode(val) for val in encodedList]
         return decodedList
+    
+    @app.route('/encrypt')
+    def encrypt(vector, scale, context, public_key_bytes):
+        #convert to Double Vector
+        dvector = DoubleVector()
+        for num in vector:
+            dvector.append(num)
+
+        #initialize encoder
+        encoder = CKKSEncoder(context)
+
+        # convert public_key_bytes to PublicKey object
+        public_key = PublicKey()
+        with open("public_key_bytes", "wb") as f:
+            f.write(public_key_bytes)
+        public_key.load(context, "public_key_bytes")
+        encryptor = Encryptor(context, public_key) 
+
+        x_plain = Plaintext()
+        x_encrypted = Ciphertext()
+
+        #list of encrypted values or encrypted list? <-- Design Choice
+        encoder.encode(dvector, scale, x_plain)
+        encryptor.encrypt(x_plain, x_encrypted)
+
+        return (x_encrypted, len(vector)) #enc = EncryptedVector(len(vector), dvector)
+    
+    @app.route('/decrypt')
+    def decrypt(encresult, context, secret_key_bytes):
+        # create SecretKey object from secret_key_bytes
+        secret_key = SecretKey()
+        with open("secret_key_bytes", "wb") as f:
+            f.write(secret_key_bytes)
+        secret_key.load(context, "secret_key_bytes")
+
+        decryptor = Decryptor(context, secret_key)
+        plainresult = Plaintext()
+
+        decryptor.decrypt(encresult, plainresult)
+
+        #can return a vectorized result?
+        return plainresult
 
     
-    #@app.route('/average')
-    def average(encryptedVals, context):
-        evaluator = Evaluator(context)
-        encavg = add(encryptedVals, context)
-        evaluator.multiply_place(encavg, 1/len(encryptedVals))
-        return encavg
-
     #@app.route('/add')
+    '''
+    @encryptedVals is a list of bytes representing encrypted values
+    need to write each value to file, then load from file into ciphertext
+    '''
     def add(encryptedVals, context):
         evaluator = Evaluator(context)
         encsum = Ciphertext()
-        for i in range(len(encryptedVals)):
+
+        byteEncryptedVals = []
+        for val in encryptedVals:
+            byteEncryptedVals.append(val)
+        
+        encryptedCiphertexts = []
+        with open("add_bytes", "wb") as f:
+            for val in byteEncryptedVals:
+                f.write(val)
+                ciphertext = Ciphertext()
+                ciphertext.load(context, "add_bytes")
+                encryptedCiphertexts.append(ciphertext)
+                f.truncate(0)
+
+        for i in range(len(encryptedCiphertexts)):
             evaluator.add_inplace(encsum, encryptedVals[i])
-        return encsum 
-
-    @app.route('/encrypt')
-    def encrypt(vector, scale, context, public_key):
-        #convert to Double Vector
-        dvector = DoubleVector()
-        for num in vector:
-            dvector.append(num)
-
-        #initialize objects
+        with open("add_bytes", "wb") as f:
+            f.truncate(0)
+        encsum.save("add_bytes")
         
-        encoder = CKKSEncoder(context)
-        encryptor = Encryptor(context, public_key) 
+        with open("add_bytes", "rb") as f:
+            encsum_bytes = f.read()
+        
+        return encsum_bytes
+        #return encsum
 
-        x_plain = Plaintext()
-        x_encrypted = Ciphertext()
-
-        #list of encrypted values or encrypted list? <-- Design Choice
-        encoder.encode(dvector, scale, x_plain)
-        encryptor.encrypt(x_plain, x_encrypted)
-
-        return (x_encrypted, len(vector)) #enc = EncryptedVector(len(vector), dvector)
-    
-    @app.route('/decrypt')
-    def decrypt(encresult, context, secret_key):
-        decryptor = Decryptor(context, secret_key)
-        plainresult = Plaintext()
-
-        decryptor.decrypt(encresult, plainresult)
-
-        #can return a vectorized result?
-        return plainresult
-
-    @app.route('/add')
-    def add(encresult, context):
+    #@app.route('/average')
+    def average(encryptedVals, context):
         evaluator = Evaluator(context)
-        encsum = Ciphertext()
+        encavg_bytes = add(encryptedVals, context)
+        with open("average_bytes", "wb") as f:
+            f.write(encavg_bytes)
+        encavg = Ciphertext()
+        encavg.load("average_bytes")
+        evaluator.multiply_place(encavg, 1/len(encryptedVals))
+        return encavg
 
-        evaluator.add_many(encresult, encsum)
-
-        return encsum 
-
-    @app.route('/encrypt')
-    def encrypt(vector, scale, context, public_key):
-        #convert to Double Vector
-        dvector = DoubleVector()
-        for num in vector:
-            dvector.append(num)
-
-        #initialize objects
-        
-        encoder = CKKSEncoder(context)
-        encryptor = Encryptor(context, public_key) 
-
-        x_plain = Plaintext()
-        x_encrypted = Ciphertext()
-
-        #list of encrypted values or encrypted list? <-- Design Choice
-        encoder.encode(dvector, scale, x_plain)
-        encryptor.encrypt(x_plain, x_encrypted)
-
-        return (x_encrypted, len(vector)) #enc = EncryptedVector(len(vector), dvector)
     
-    @app.route('/decrypt')
-    def decrypt(encresult, context, secret_key):
-        decryptor = Decryptor(context, secret_key)
-        plainresult = Plaintext()
+    
+    
 
-        decryptor.decrypt(encresult, plainresult)
+    # OLD, DON'T USE THIS
+    # @app.route('/add')
+    # def add(encresult_bytes, context):
+    #     with open("add_bytes", "wb") as f:
+    #         f.write(encresult_bytes)
+    #     encresult = Ciphertext()
+    #     encresult.load(context, 'add_bytes')
 
-        #can return a vectorized result?
-        return plainresult
+    #     evaluator = Evaluator(context)
+    #     encsum = Ciphertext()
+
+    #     evaluator.add_many(encresult, encsum)
+
+    #     encsum.save()
+    #     return encsum 
+    
+
+
+    # @app.route('/encrypt')
+    # def encrypt(vector, scale, context, public_key):
+    #     #convert to Double Vector
+    #     dvector = DoubleVector()
+    #     for num in vector:
+    #         dvector.append(num)
+
+    #     #initialize objects
+        
+    #     encoder = CKKSEncoder(context)
+    #     encryptor = Encryptor(context, public_key) 
+
+    #     x_plain = Plaintext()
+    #     x_encrypted = Ciphertext()
+
+    #     #list of encrypted values or encrypted list? <-- Design Choice
+    #     encoder.encode(dvector, scale, x_plain)
+    #     encryptor.encrypt(x_plain, x_encrypted)
+
+    #     return (x_encrypted, len(vector)) #enc = EncryptedVector(len(vector), dvector)
+    
+    # @app.route('/decrypt')
+    # def decrypt(encresult, context, secret_key):
+    #     decryptor = Decryptor(context, secret_key)
+    #     plainresult = Plaintext()
+
+    #     decryptor.decrypt(encresult, plainresult)
+
+    #     #can return a vectorized result?
+    #     return plainresult
 
     @app.route('/test')
     def test():
@@ -231,3 +298,8 @@ def create_app(test_config=None):
     
     return app
 
+
+'''
+
+
+'''
