@@ -50,20 +50,20 @@ def create_app(test_config=None):
     def hello():
         return 'Hello, World!'
 
-    @app.route('/compute', methods=['POST', 'GET'])
-    def computation():
-        try:
-            searchword = request.args.get('key', '')
-        except KeyError:
-            return "Invalid Request"
+    # @app.route('/compute', methods=['POST', 'GET'])
+    # def computation():
+    #     try:
+    #         searchword = request.args.get('key', '')
+    #     except KeyError:
+    #         return "Invalid Request"
 
-        if searchword == "ADD":
+    #     if searchword == "ADD":
 
-        elif searchword == "AVERAGE":
+    #     elif searchword == "AVERAGE":
         
-        elif searchword == "MULTIPLY":
-            #TODO
-            pass 
+    #     elif searchword == "MULTIPLY":
+    #         #TODO
+    #         pass 
 
     '''
     write public key to file, write secret key to file
@@ -80,11 +80,11 @@ def create_app(test_config=None):
         decryptor = Decryptor(context, secret_key)
         #public_key_bytes = bytarray(public_key)
         #secret_key_bytes = byte
-        public_key.save('public_key_file')
-        private_key.save('private_key_file')
-        with open("public_key_file", "rb") as f:
+        public_key.save('public_key_bytes')
+        private_key.save('private_key_bytes')
+        with open("public_key_bytes", "rb") as f:
             public_key_bytes = f.read()
-        with open("private_key_file", "rb") as f:
+        with open("secret_key_bytes", "rb") as f:
             private_key_bytes = f.read()
         return [public_key_bytes, private_key_bytes]
         #return [public_key, secret_key]
@@ -149,7 +149,7 @@ def create_app(test_config=None):
         return plainresult
 
     
-    #@app.route('/add')
+    @app.route('/add')
     '''
     @encryptedVals is a list of bytes representing encrypted values
     need to write each value to file, then load from file into ciphertext
@@ -184,7 +184,7 @@ def create_app(test_config=None):
         return encsum_bytes
         #return encsum
 
-    #@app.route('/average')
+    @app.route('/average')
     def average(context):
         encryptedVals = request.form.get('ints')
         evaluator = Evaluator(context)
