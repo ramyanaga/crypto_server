@@ -4,7 +4,8 @@ import base64
 from seal import *
 from seal_helper_outer import *
 
-from flask import Flask
+from flask import Flask, jsonify, request
+import json
 
 def create_app(test_config=None):
     # create and configure the app
@@ -81,14 +82,22 @@ def create_app(test_config=None):
         #public_key_bytes = bytarray(public_key)
         #secret_key_bytes = byte
         public_key.save('public_key_bytes')
-        private_key.save('private_key_bytes')
+        secret_key.save('secret_key_bytes')
         with open("public_key_bytes", "rb") as f:
             public_key_bytes = f.read()
         with open("secret_key_bytes", "rb") as f:
-            private_key_bytes = f.read()
-        return [public_key_bytes, private_key_bytes]
-        #return [public_key, secret_key]
-        #return {"public_key: ", public_key, "secret_key: ", secret_key}
+            secret_key_bytes = f.read()
+        with open("public_key_bytes_temp.txt", "w") as f:
+            f.write(str(public_key_bytes))
+        with open("secret_key_bytes_temp.txt", "w") as f:
+            f.write(str(secret_key_bytes))
+        print(public_key_bytes)
+        print(secret_key_bytes)
+        #key_dict = {"public_key_bytes": str(public_key_bytes),
+        #            "secret_key_bytes": str(secret_key_bytes)}
+        key_dict = {"public_key_bytes": str(public_key_bytes)}
+        return json.dumps(key_dict)
+       
 
     def decodeBase64Val(val):
         return base64.decode(val)
@@ -97,10 +106,21 @@ def create_app(test_config=None):
         decodedList = [base64.decode(val) for val in encodedList]
         return decodedList
     
-    @app.route('/encrypt')
-    def encrypt(scale, context):
+    @app.route('/encrypt', methods=['GET', 'POST'])
+    def encrypt():
+    #def encrypt(scale, context):
+        print("request.args: ", request.args)
+        print("request.form: ", request.form)
+        print("request.files: ", request.files)
+        print("request.json: ", request.json)
+        print("request.data: ", request.data)
+        print("type of request data: ", type(request.data))
+        print("all data: ", request.get_data())
+        scale = pow(2.0, 40)
+        context = SEALContext.Create(parms)
         #convert to Double Vector
         public_key_bytes = request.form.get('public_key')
+        public_key_bytes = bytes(public_key_bytes, 'utf-8')
         vector = request.form.get('vector') # probably should name this something more informative
         dvector = DoubleVector()
         for num in vector:
@@ -149,11 +169,11 @@ def create_app(test_config=None):
         return plainresult
 
     
-    @app.route('/add')
     '''
     @encryptedVals is a list of bytes representing encrypted values
     need to write each value to file, then load from file into ciphertext
     '''
+    @app.route('/add')
     def add(context):
         encryptedVals = request.form.get('ints')
         evaluator = Evaluator(context)
