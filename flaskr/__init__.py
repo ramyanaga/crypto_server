@@ -58,9 +58,18 @@ def create_app(test_config=None):
             return "Invalid Request"
 
         if searchword == "ADD":
+            evaluator = Evaluator(context)
+            encsum = Ciphertext()
+            for i in range(len(encryptedVals)):
+                evaluator.add_inplace(encsum, encryptedVals[i])
+            return encsum 
 
         elif searchword == "AVERAGE":
-        
+            evaluator = Evaluator(context)
+            encavg = add(encryptedVals, context)
+            evaluator.multiply_place(encavg, 1/len(encryptedVals))
+            return encavg
+            
         elif searchword == "MULTIPLY":
             #TODO
             pass 
