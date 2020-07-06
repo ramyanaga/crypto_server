@@ -98,8 +98,10 @@ def create_app(test_config=None):
         return decodedList
     
     @app.route('/encrypt')
-    def encrypt(vector, scale, context, public_key_bytes):
+    def encrypt(scale, context):
         #convert to Double Vector
+        public_key_bytes = request.form.get('public_key')
+        vector = request.form.get('vector') # probably should name this something more informative
         dvector = DoubleVector()
         for num in vector:
             dvector.append(num)
@@ -124,8 +126,15 @@ def create_app(test_config=None):
         return (x_encrypted, len(vector)) #enc = EncryptedVector(len(vector), dvector)
     
     @app.route('/decrypt')
-    def decrypt(encresult, context, secret_key_bytes):
+    #def decrypt(encresult, context, secret_key_bytes):
+    def decrypt(context):
         # create SecretKey object from secret_key_bytes
+        encrypted_value_bytes = request.form.get('encrypted_value')
+        with open("decrypt_bytes", "wb") as f:
+            f.write(encrypted_value_bytes)
+        encrypted_value = Ciphertext()
+        encrypted.value.load("decrypt_bytes")
+        secret_key_bytes = request.form.get('secret_key')
         secret_key = SecretKey()
         with open("secret_key_bytes", "wb") as f:
             f.write(secret_key_bytes)
@@ -134,7 +143,7 @@ def create_app(test_config=None):
         decryptor = Decryptor(context, secret_key)
         plainresult = Plaintext()
 
-        decryptor.decrypt(encresult, plainresult)
+        decryptor.decrypt(encrypted_value, plainresult)
 
         #can return a vectorized result?
         return plainresult
@@ -145,7 +154,8 @@ def create_app(test_config=None):
     @encryptedVals is a list of bytes representing encrypted values
     need to write each value to file, then load from file into ciphertext
     '''
-    def add(encryptedVals, context):
+    def add(context):
+        encryptedVals = request.form.get('ints')
         evaluator = Evaluator(context)
         encsum = Ciphertext()
 
@@ -175,7 +185,8 @@ def create_app(test_config=None):
         #return encsum
 
     #@app.route('/average')
-    def average(encryptedVals, context):
+    def average(context):
+        encryptedVals = request.form.get('ints')
         evaluator = Evaluator(context)
         encavg_bytes = add(encryptedVals, context)
         with open("average_bytes", "wb") as f:
