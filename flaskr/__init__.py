@@ -133,21 +133,45 @@ def create_app(test_config=None):
         x_encrypted = Ciphertext()
 
         #list of encrypted values or encrypted list? <-- Design Choice
-        encoder.encode(dvector, scale, x_plain)
-        encryptor.encrypt(x_plain, x_encrypted)
-    
-        x_encrypted.save("encrypt_bytes")
-        with open("encrypt_bytes", "rb") as f:
-            x_encrypted_bytes = f.read()
+        #encoder.encode(dvector, scale, x_plain)
+        encoded_vals = []
+        for val in dvector:
+            plaintext_val = Plaintext()
+            encoder.encode(dvector, scale, plaintext_val)
+            encoded_vals.append(plaintext_val)
+        #encryptor.encrypt(x_plain, x_encrypted)
+
+        encrypted_vals = []
+        for encoded_val in encoded_vals:
+            encrypted_val = Ciphertext()
+            encryptor.encrypt(encoded_val, encrypted_val)
+            encrypted_vals.append(encrypted_val)
+
+
+        byte_encrypted_vals = []
+        for encrypted_val in encrypted_vals:
+            encrypted_val.save("encrypted_val_bytes")
+            with open("encrypted_val_bytes", "rb") as f:
+                byte_encrypted_val = f.read()
+                byte_encrypted_vals.append(str(byte_encrypted_val))
+
+        #x_encrypted.save("encrypt_bytes")
+        #with open("encrypt_bytes", "rb") as f:
+        #    x_encrypted_bytes = f.read()
         
-        return json.dumps({"x_encrypted": str(x_encrypted_bytes), "vector_length": len(vector)})
+        return json.dumps({'encrypted_vals': byte_encrypted_vals, 'vector_length': len(byte_encrypted_vals)})
+
+        #return json.dumps({"x_encrypted": str(x_encrypted_bytes), "vector_length": len(vector)})
 
     
     @app.route('/decrypt')
+    def decrypt():
     #def decrypt(encresult, context, secret_key_bytes):
-    def decrypt(context):
+    #def decrypt(context):
+        context = SEALContext.Create(parms)
         # create SecretKey object from secret_key_bytes
-        encrypted_value_bytes = request.form.get('encrypted_value')
+        #encrypted_value_bytes = request.form.get('encrypted_value')
+        encrypted_value_bytes = request.data
         with open("decrypt_bytes", "wb") as f:
             f.write(encrypted_value_bytes)
         encrypted_value = Ciphertext()
