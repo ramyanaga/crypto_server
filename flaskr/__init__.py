@@ -213,17 +213,41 @@ def create_app(test_config=None):
     '''
     @app.route('/add')
     def add():
+
+        scale = pow(2.0, 40)
         context = SEALContext.Create(parms)
+
+        public_key_bytes = request.data
+        public_key = PublicKey()
+        with open("public_key_bytes", "wb") as f:
+            f.write(public_key_bytes)
+        public_key.load(context, "public_key_bytes")
+
+        encoder = CKKSEncoder(context)
+
         encryptedVals = request.args.getlist('nums')
         evaluator = Evaluator(context)
+        encryptor = Encryptor(context, public_key)
+
         encsum = Ciphertext()
         encryptedVector = []
         for val in encryptedVals:
             encryptedVector.append(float(val))
         encryptedVector = DoubleVector(encryptedVector)
+        print("encryptedVector: ", encryptedVector)
         encsum = Ciphertext()
-        for i in range(len(encryptedVector)):
-            evaluator.add_inplace(encsum, encryptedVector[i])
+        for i in range(1, len(encryptedVector)):
+            tempEncryptedVal = Ciphertext()
+            plain_coeff = Plaintext()
+            encoder.encode(float(encryptedVector[i-1]), scale, plain_coeff)
+            encryptor.encrypt(plain_coeff, tempEncryptedVal)
+
+            tempEncryptedVal2 = Ciphertext()
+            plain_coeff2 = Plaintext()
+            encoder.encode(float(encryptedVector[i]), scale, plain_coeff2)
+            encryptor.encrypt(plain_coeff2, tempEncryptedVal2)
+            evaluator.add(tempEncryptedVal, tempEncryptedVal2, encsum)
+            #evaluator.add_plain_inplace(encsum, plain_coeff)
         encsum.save('add_bytes')
 
         with open("add_bytes", 'rb') as f:
