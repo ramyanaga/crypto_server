@@ -154,16 +154,18 @@ def create_app(test_config=None):
             with open("encrypted_val_bytes", "rb") as f:
                 byte_encrypted_val = f.read()
                 byte_encrypted_vals.append(str(byte_encrypted_val))
-
-        #x_encrypted.save("encrypt_bytes")
-        #with open("encrypt_bytes", "rb") as f:
-        #    x_encrypted_bytes = f.read()
         
+        # below is just for testing purposes
+        json_object = json.dumps({'encrypted_vals': byte_encrypted_vals, 'vector_length': len(byte_encrypted_vals)})
+        with open("encrypt_result_temp", "w") as f:
+            f.write(json_object)
+
         return json.dumps({'encrypted_vals': byte_encrypted_vals, 'vector_length': len(byte_encrypted_vals)})
 
-        #return json.dumps({"x_encrypted": str(x_encrypted_bytes), "vector_length": len(vector)})
-
-    
+    '''
+    To test decrypt, write secret key + encrypted vals as dictionary formatted as string,
+    can load that into request.data for decrypt
+    '''
     @app.route('/decrypt')
     def decrypt():
     #def decrypt(encresult, context, secret_key_bytes):
@@ -195,15 +197,55 @@ def create_app(test_config=None):
     @encryptedVals is a list of bytes representing encrypted values
     need to write each value to file, then load from file into ciphertext
     '''
+    '''
+    take in encrypted numbers as a list
+    iterate through each one and create a ciphertext object for each one
+    add them all together
+    return encrypted sum in bytes
+    '''
+    '''
+    For now:
+    take numbers as a list (non-encrypted)
+    iterate through each one, add to DoubleVector list
+    add them all together
+    encrypt result
+    return encrypted result in bytes
+    '''
     @app.route('/add')
-    def add(context):
-        encryptedVals = request.form.get('ints')
+    def add():
+        context = SEALContext.Create(parms)
+        encryptedVals = request.args.getlist('nums')
+        evaluator = Evaluator(context)
+        encsum = Ciphertext()
+        encryptedVector = []
+        for val in encryptedVals:
+            encryptedVector.append(float(val))
+        encryptedVector = DoubleVector(encryptedVector)
+        encsum = Ciphertext()
+        for i in range(len(encryptedVector)):
+            evaluator.add_inplace(encsum, encryptedVector[i])
+        encsum.save('add_bytes')
+
+        with open("add_bytes", 'rb') as f:
+            encsum_bytes = f.read()
+        
+        return json.dumps({'encrypted_sum': str(encsum_bytes)})
+
+    '''
+    @app.route('/add')
+    def add():
+        context = SEALContext.Create(parms)
+        encryptedVals = request.args.getlist('nums')
+        print("hi!")
+        print("encryptedVals: ", encryptedVals)
+        #print(type(encryptedVals[0]))
         evaluator = Evaluator(context)
         encsum = Ciphertext()
 
         byteEncryptedVals = []
         for val in encryptedVals:
-            byteEncryptedVals.append(val)
+
+            byteEncryptedVals.append(float(val))
         
         encryptedCiphertexts = []
         with open("add_bytes", "wb") as f:
@@ -225,9 +267,11 @@ def create_app(test_config=None):
         
         return encsum_bytes
         #return encsum
+    '''
 
     @app.route('/average')
-    def average(context):
+    def average():
+        context = SEALContext.Create(parms)
         encryptedVals = request.form.get('ints')
         evaluator = Evaluator(context)
         encavg_bytes = add(encryptedVals, context)
