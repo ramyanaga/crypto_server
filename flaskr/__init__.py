@@ -51,20 +51,43 @@ def create_app(test_config=None):
     def hello():
         return 'Hello, World!'
 
-    # @app.route('/compute', methods=['POST', 'GET'])
-    # def computation():
-    #     try:
-    #         searchword = request.args.get('key', '')
-    #     except KeyError:
-    #         return "Invalid Request"
+    @app.route('/compute', methods=['POST', 'GET'])
+    def computation():
+        try:
+            searchword = request.args.get('key', '')
+        except KeyError:
+            return "Invalid Request"
 
-    #     if searchword == "ADD":
+        if searchword == "ADD":
+            column = request.args.getlist('encrypted_vals')
 
-    #     elif searchword == "AVERAGE":
-        
-    #     elif searchword == "MULTIPLY":
-    #         #TODO
-    #         pass 
+            context = SEALContext.Create(parms)
+            encryptedVals = request.args.getlist('nums')
+            evaluator = Evaluator(context)
+            encsum = Ciphertext()
+            encryptedVector = []
+
+            for val in encryptedVals:
+                encryptedVector.append(float(val))
+
+            encryptedVector = DoubleVector(encryptedVector)
+            encsum = Ciphertext()
+
+            for i in range(len(encryptedVector)):
+                evaluator.add_inplace(encsum, encryptedVector[i])
+
+            encsum.save('add_bytes')
+
+            with open("add_bytes", 'rb') as f:
+                encsum_bytes = f.read()
+            
+            return json.dumps({'encrypted_sum': str(encsum_bytes)})
+
+        elif searchword == "AVERAGE":
+            pass
+        elif searchword == "MULTIPLY":
+            #TODO
+            pass 
 
     '''
     write public key to file, write secret key to file
@@ -192,7 +215,7 @@ def create_app(test_config=None):
         #can return a vectorized result?
         return plainresult
 
-    
+
     '''
     @encryptedVals is a list of bytes representing encrypted values
     need to write each value to file, then load from file into ciphertext
@@ -215,6 +238,9 @@ def create_app(test_config=None):
     def add():
         context = SEALContext.Create(parms)
         encryptedVals = request.args.getlist('nums')
+
+        print(encryptedVals)
+
         evaluator = Evaluator(context)
         encsum = Ciphertext()
         encryptedVector = []
