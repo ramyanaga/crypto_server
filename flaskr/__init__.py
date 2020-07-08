@@ -95,7 +95,14 @@ def create_app(test_config=None):
         print(secret_key_bytes)
         #key_dict = {"public_key_bytes": str(public_key_bytes),
         #            "secret_key_bytes": str(secret_key_bytes)}
-        key_dict = {"public_key_bytes": str(public_key_bytes)}
+       # key_dict = {"public_key_bytes": str(public_key_bytes)}
+        key_dict = {"public_key_bytes": public_key_bytes.decode('cp437'),
+                    "secret_key_bytes": secret_key_bytes.decode('cp437')}
+        
+        json_data = json.dumps(key_dict)
+        with open("keys_temp", "w") as f:
+            f.write(json_data)
+        
         return json.dumps(key_dict)
        
 
@@ -166,9 +173,48 @@ def create_app(test_config=None):
         return json.dumps({'encrypted_vals': byte_encrypted_vals, 'vector_length': len(byte_encrypted_vals)})
 
     '''
-    Decrypt requires private key + list of encrypted elements
-    Iterate through list and decrypt each element individually,
-    return list of decrypted elements
+    Decrypt Steps:
+    - open json file with private key and value to be decrypted
+    - create key object from private key
+    - create ciphertext object from value
+    - decrypt with evaluator
+    - return
+    '''
+    @app.route('/decrypt')
+    def decrypt():
+        context = SEALContext.Create(parms)
+        #data_dict = json.loads(request.data)
+        #private_key = 
+        #encrypted_byte_vals = data_dict['encrypted_sum']
+        with open("secret_key_bytes", "rb") as f:
+            secret_key_bytes = f.read()
+        secret_key = SecretKey()
+        secret_key.load(context, "secret_key_bytes")
+        
+        with open("add_result_json", "r") as f:
+            add_result_json = json.loads(f.read())
+            encrypted_sum_bytes = add_result_json["encrypted_sum"].encode('cp437')
+            with open("add_result_bytes_from_decrypt", "wb") as f:
+                f.write(encrypted_sum_bytes)    
+        
+        encrypted_val = Ciphertext()
+        print(type(encrypted_val))
+        encrypted_val.load(context, "add_result_bytes_from_decrypt")
+        print(type(encrypted_val))
+
+        decryptor = Decryptor(context, secret_key)
+        encoder = CKKSEncoder(context)
+        decrypted_val = Plaintext()
+        decryptor.decrypt(encrypted_val, decrypted_val)
+        output = DoubleVector()
+        encoder.decode(decrypted_val, output)
+        print(output[0])
+        return json.dumps({"decrypted_value": output[0]})
+
+
+        
+
+
     '''
     @app.route('/decrypt')
     def decrypt():
@@ -195,6 +241,7 @@ def create_app(test_config=None):
 
         #can return a vectorized result?
         return plainresult
+    '''
 
     
     '''
@@ -241,6 +288,9 @@ def create_app(test_config=None):
         
         with open("add_result_temp", "rb") as f:
             enc_result_bytes = f.read()
+
+        with open("add_result_json", "w") as f:
+            f.write(json.dumps({"encrypted_sum":enc_result_bytes.decode('cp437')}))            
 
         return json.dumps({"encrypted_sum":enc_result_bytes.decode('cp437')})
 
