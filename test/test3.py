@@ -31,25 +31,6 @@ decryptor = Decryptor(context, secret_key)
 
 encoder = CKKSEncoder(context)
 
-inputs = DoubleVector([1,2,3,4])
-
-print("Input vector: ")
-print_vector(inputs, 3, 7)
-
-
-encinputs = []
-
-for inp in inputs:
-    print("Inputs: ")
-    print(inp)
-    xplain = Plaintext()
-    encoder.encode(inp, scale, xplain)
-
-    xenc = Ciphertext()
-    encryptor.encrypt(xplain, xenc)
-
-    encinputs.append(xenc)
-
 def makebstr(fname, ctext):
     ctext.save(fname)
 
@@ -60,9 +41,7 @@ def makebstr(fname, ctext):
 
     return filecontent.decode('cp437')
 
-xbstr = makebstr('ass', encinputs[0])
-
-def loadctext(bstr, fname):
+def loadctext(fname, bstr):
 
     xenc = Ciphertext()
     b = bstr.encode('cp437')
@@ -74,46 +53,89 @@ def loadctext(bstr, fname):
 
     return xenc
 
-ct = loadctext(xbstr, "titties")
+inputs = DoubleVector([1.2,2.2,3.3,4.5, 6])
+
+print("Input vector: ")
+print_vector(inputs, 3, 7)
+
+'''
+Encrypt input vector:
+[enc_ val, enc_val, enc_val]
+'''
+encinputs = []
+
+for inp in inputs:
+    xplain = Plaintext()
+    encoder.encode(inp, scale, xplain)
+
+    xenc = Ciphertext()
+    encryptor.encrypt(xplain, xenc)
+
+    encinputs.append(xenc)
+
+'''
+Convert encrypted vector
+to string format
+'''
+str_encinputs = []
+
+for encinp in encinputs:
+    bstr = makebstr('bstr', encinp)
+    str_encinputs.append(bstr)
+
+
+def average():
+
+    encinps = []
+
+    for stri in str_encinputs:
+        encinps.append(loadctext("stri", stri))
+
+    # print(encinps)
+    # print([x.scale() for x in encinps])
+    result = encinps[0]
+
+    # evaluator.multiply_inplace(result, encinps[2])
+    # evaluator.rescale_to_next_inplace(result)
+    # print("result scale: ", result.scale())
+    # evaluator.rescale_to_next_inplace(encinps[3])
+    # print("encip scale: ", encinps[3].scale())
+    # evaluator.multiply_inplace(result, encinps[3])
+    
+    # evaluator.relinearize_inplace(result, relin_keys)
+
+    for i in range(1,len(encinps)):
+        # print("works for " + str(i))
+        # print("results scale: ",result.scale())
+        evaluator.add_inplace(result, encinps[i])
+
+        # evaluator.multiply_inplace(result, encinps[i])
+        # evaluator.relinearize_inplace(result, relin_keys)
+        #evaluator.rescale_to_next_inplace(result)
+        #result.scale(encinps[i].scale())
+
+    # #result.scale(pow(2.0, 40))
+    # print(result.scale())
+
+    avg = 1/len(encinps)
+    pavg = Plaintext()
+    encoder.encode(avg, scale, pavg)
+
+    evaluator.multiply_plain_inplace(result, pavg)
+    evaluator.relinearize_inplace(result, relin_keys)
+    evaluator.rescale_to_next_inplace(result)
+
+    return result 
+
+avg = average()
 
 result = Plaintext()
 
-decryptor.decrypt(ct, result)
+decryptor.decrypt(avg, result)
 
 output = DoubleVector()
 
 encoder.decode(result, output)
+
 print(output[0])
-
-# j = xbstr.encode()
-# print(j, type(j))
-
-# j = {"x":[xbstr]}
-# j = json.dumps(j)
-# j = json.loads(j)
-
-# print(type(j["x"][0]), type(xbstr))
-
-# #x1_encrypted.save("ctext")
-# public_key.save("pkey")
-
-# with open("ctext", mode='rb') as file:
-#     filecontent = file.read()
-
-# with open("pkey", mode='rb') as file:
-#     filecontent2 = file.read()
-
-# #print(str(filecontent))
-# print(str(filecontent2))
-
-# x2_enc = Ciphertext()
-
-# x2_enc.load(context, "ctext")
-
-# x3_encrypted = Ciphertext()
-# print("-" * 50)
-# print("Compute x^2 and relinearize:")
-# evaluator.square(x2_enc, x3_encrypted)
-# evaluator.relinearize_inplace(x3_encrypted, relin_keys)
-# print("    + Scale of x^2 before rescale: " +
-#         "%.0f" % math.log(x3_encrypted.scale(), 2) + " bits")
+#print_vector(output)
