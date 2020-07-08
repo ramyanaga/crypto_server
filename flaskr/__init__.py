@@ -154,8 +154,6 @@ def create_app(test_config=None):
             with open("encrypted_val_bytes", "rb") as f:
                 byte_encrypted_val = f.read()
                 print("byte_encrypted_val")
-                #byte_encrypted_val.decode('utf8').replace("'", '"')
-                #byte_encrypted_vals.append(str(byte_encrypted_val))
                 byte_encrypted_vals.append(byte_encrypted_val.decode('cp437'))
         
         # below is just for testing purposes
@@ -163,9 +161,6 @@ def create_app(test_config=None):
         json_data = {'encrypted_vals': byte_encrypted_vals, 'vector_length': len(byte_encrypted_vals)}
         with open("encrypt_result_temp", "w") as f:
            f.write(json.dumps(json_data))
-           #json.dump(json_data, f)
-           #f.write(json_object)
-
         #print("type of byte_encrypted_vals: ", type(byte_encrypted_vals))
 
         return json.dumps({'encrypted_vals': byte_encrypted_vals, 'vector_length': len(byte_encrypted_vals)})
@@ -248,28 +243,6 @@ def create_app(test_config=None):
             enc_result_bytes = f.read()
 
         return json.dumps({"encrypted_sum":enc_result_bytes.decode('cp437')})
-        
-
-            #filecontent = 
-
-            # with open("add_encrypted_bytes_temp", "rb") as f:
-            #     temp_val = f.read()
-            # with open("add_encrypted_bytes_temp", "wb") as f:
-            #     f.write(temp_val)
-            # ciphertext = Ciphertext()
-            # ciphertext.load(context, "add_encrypted_bytes_temp")
-            # ciphertext_vals.append(ciphertext)
-        # with open("add_encrypted_bytes_temp", "wb") as f:
-        #     for val in encrypted_vals:
-        #         f.write(bytes(val, 'utf-8'))
-        #         ciphertext_val = Ciphertext()
-        #         ciphertext_val.load(context, "add_encrypted_bytes_temp")
-        #         ciphertext_vals.append(ciphertext)
-
-        #for val in encrypted_vals:
-            
-            #val = bytes(val, 'utf-8')
-
 
 
     # @app.route('/add')
