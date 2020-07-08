@@ -153,18 +153,27 @@ def create_app(test_config=None):
             encrypted_val.save("encrypted_val_bytes")
             with open("encrypted_val_bytes", "rb") as f:
                 byte_encrypted_val = f.read()
-                byte_encrypted_vals.append(str(byte_encrypted_val))
+                print("byte_encrypted_val")
+                #byte_encrypted_val.decode('utf8').replace("'", '"')
+                #byte_encrypted_vals.append(str(byte_encrypted_val))
+                byte_encrypted_vals.append(byte_encrypted_val.decode('cp437'))
         
         # below is just for testing purposes
-        json_object = json.dumps({'encrypted_vals': byte_encrypted_vals, 'vector_length': len(byte_encrypted_vals)})
+        #json_object = json.dumps({'encrypted_vals': byte_encrypted_vals, 'vector_length': len(byte_encrypted_vals)})
+        json_data = {'encrypted_vals': byte_encrypted_vals, 'vector_length': len(byte_encrypted_vals)}
         with open("encrypt_result_temp", "w") as f:
-            f.write(json_object)
+           f.write(json.dumps(json_data))
+           #json.dump(json_data, f)
+           #f.write(json_object)
+
+        #print("type of byte_encrypted_vals: ", type(byte_encrypted_vals))
 
         return json.dumps({'encrypted_vals': byte_encrypted_vals, 'vector_length': len(byte_encrypted_vals)})
 
     '''
-    To test decrypt, write secret key + encrypted vals as dictionary formatted as string,
-    can load that into request.data for decrypt
+    Decrypt requires private key + list of encrypted elements
+    Iterate through list and decrypt each element individually,
+    return list of decrypted elements
     '''
     @app.route('/decrypt')
     def decrypt():
@@ -203,6 +212,102 @@ def create_app(test_config=None):
     add them all together
     return encrypted sum in bytes
     '''
+
+    '''
+    add takes in list of encrypted numbers in json file
+    iterate through each one and adds them together
+    returns encrypted result
+    '''
+    @app.route('/add')
+    def add():
+        context = SEALContext.Create(parms)
+        data_dict = json.loads(request.data)
+        print(type(data_dict))
+        print(type(data_dict['encrypted_vals']))
+        encrypted_byte_vals = data_dict['encrypted_vals']
+        evaluator = Evaluator(context)
+        #print(type(encrypted_vals[0]))
+
+        ciphertext_vals = []
+        for val in encrypted_byte_vals:
+            val = val.encode('cp437')
+            with open("add_encrypted_bytes_temp", "wb") as f:
+                f.write(val)
+            ciphertext = Ciphertext()
+            ciphertext.load(context, "add_encrypted_bytes_temp")
+            ciphertext_vals.append(ciphertext)
+        
+        enc_result = Ciphertext()
+        evaluator.add(ciphertext_vals[0], ciphertext_vals[1], enc_result)
+        for i in range(2, len(ciphertext_vals)):
+            evaluator.add(ciphertext_vals[i], enc_result, enc_result)
+        
+        enc_result.save("add_result_temp")
+        
+        with open("add_result_temp", "rb") as f:
+            enc_result_bytes = f.read()
+
+        return json.dumps({"encrypted_sum":enc_result_bytes.decode('cp437')})
+        
+
+            #filecontent = 
+
+            # with open("add_encrypted_bytes_temp", "rb") as f:
+            #     temp_val = f.read()
+            # with open("add_encrypted_bytes_temp", "wb") as f:
+            #     f.write(temp_val)
+            # ciphertext = Ciphertext()
+            # ciphertext.load(context, "add_encrypted_bytes_temp")
+            # ciphertext_vals.append(ciphertext)
+        # with open("add_encrypted_bytes_temp", "wb") as f:
+        #     for val in encrypted_vals:
+        #         f.write(bytes(val, 'utf-8'))
+        #         ciphertext_val = Ciphertext()
+        #         ciphertext_val.load(context, "add_encrypted_bytes_temp")
+        #         ciphertext_vals.append(ciphertext)
+
+        #for val in encrypted_vals:
+            
+            #val = bytes(val, 'utf-8')
+
+
+
+    # @app.route('/add')
+    # def add():
+    #     context = SEALContext.Create(parms)
+    #     encryptedVals = request.args.getlist('nums')
+    #     print("hi!")
+    #     print("encryptedVals: ", encryptedVals)
+    #     #print(type(encryptedVals[0]))
+    #     evaluator = Evaluator(context)
+    #     encsum = Ciphertext()
+
+    #     byteEncryptedVals = []
+    #     for val in encryptedVals:
+
+    #         byteEncryptedVals.append(float(val))
+        
+    #     encryptedCiphertexts = []
+    #     with open("add_bytes", "wb") as f:
+    #         for val in byteEncryptedVals:
+    #             f.write(val)
+    #             ciphertext = Ciphertext()
+    #             ciphertext.load(context, "add_bytes")
+    #             encryptedCiphertexts.append(ciphertext)
+    #             f.truncate(0)
+
+    #     for i in range(len(encryptedCiphertexts)):
+    #         evaluator.add_inplace(encsum, encryptedVals[i])
+    #     with open("add_bytes", "wb") as f:
+    #         f.truncate(0)
+    #     encsum.save("add_bytes")
+        
+    #     with open("add_bytes", "rb") as f:
+    #         encsum_bytes = f.read()
+        
+    #     return encsum_bytes
+    #     #return encsum
+
     '''
     For now:
     take numbers as a list (non-encrypted)
@@ -211,87 +316,51 @@ def create_app(test_config=None):
     encrypt result
     return encrypted result in bytes
     '''
-    @app.route('/add')
-    def add():
+    # @app.route('/add')
+    # def add():
 
-        scale = pow(2.0, 40)
-        context = SEALContext.Create(parms)
+    #     scale = pow(2.0, 40)
+    #     context = SEALContext.Create(parms)
 
-        public_key_bytes = request.data
-        public_key = PublicKey()
-        with open("public_key_bytes", "wb") as f:
-            f.write(public_key_bytes)
-        public_key.load(context, "public_key_bytes")
+    #     public_key_bytes = request.data
+    #     public_key = PublicKey()
+    #     with open("public_key_bytes", "wb") as f:
+    #         f.write(public_key_bytes)
+    #     public_key.load(context, "public_key_bytes")
 
-        encoder = CKKSEncoder(context)
+    #     encoder = CKKSEncoder(context)
 
-        encryptedVals = request.args.getlist('nums')
-        evaluator = Evaluator(context)
-        encryptor = Encryptor(context, public_key)
+    #     encryptedVals = request.args.getlist('nums')
+    #     evaluator = Evaluator(context)
+    #     encryptor = Encryptor(context, public_key)
 
-        encsum = Ciphertext()
-        encryptedVector = []
-        for val in encryptedVals:
-            encryptedVector.append(float(val))
-        encryptedVector = DoubleVector(encryptedVector)
-        print("encryptedVector: ", encryptedVector)
-        encsum = Ciphertext()
-        for i in range(1, len(encryptedVector)):
-            tempEncryptedVal = Ciphertext()
-            plain_coeff = Plaintext()
-            encoder.encode(float(encryptedVector[i-1]), scale, plain_coeff)
-            encryptor.encrypt(plain_coeff, tempEncryptedVal)
+    #     encsum = Ciphertext()
+    #     encryptedVector = []
+    #     for val in encryptedVals:
+    #         encryptedVector.append(float(val))
+    #     encryptedVector = DoubleVector(encryptedVector)
+    #     print("encryptedVector: ", encryptedVector)
+    #     encsum = Ciphertext()
+    #     for i in range(1, len(encryptedVector)):
+    #         tempEncryptedVal = Ciphertext()
+    #         plain_coeff = Plaintext()
+    #         encoder.encode(float(encryptedVector[i-1]), scale, plain_coeff)
+    #         encryptor.encrypt(plain_coeff, tempEncryptedVal)
 
-            tempEncryptedVal2 = Ciphertext()
-            plain_coeff2 = Plaintext()
-            encoder.encode(float(encryptedVector[i]), scale, plain_coeff2)
-            encryptor.encrypt(plain_coeff2, tempEncryptedVal2)
-            evaluator.add(tempEncryptedVal, tempEncryptedVal2, encsum)
-            #evaluator.add_plain_inplace(encsum, plain_coeff)
-        encsum.save('add_bytes')
+    #         tempEncryptedVal2 = Ciphertext()
+    #         plain_coeff2 = Plaintext()
+    #         encoder.encode(float(encryptedVector[i]), scale, plain_coeff2)
+    #         encryptor.encrypt(plain_coeff2, tempEncryptedVal2)
+    #         evaluator.add(tempEncryptedVal, tempEncryptedVal2, encsum)
+    #         #evaluator.add_plain_inplace(encsum, plain_coeff)
+    #     encsum.save('add_bytes')
 
-        with open("add_bytes", 'rb') as f:
-            encsum_bytes = f.read()
+    #     with open("add_bytes", 'rb') as f:
+    #         encsum_bytes = f.read()
         
-        return json.dumps({'encrypted_sum': str(encsum_bytes)})
+    #     return json.dumps({'encrypted_sum': str(encsum_bytes)})
 
-    '''
-    @app.route('/add')
-    def add():
-        context = SEALContext.Create(parms)
-        encryptedVals = request.args.getlist('nums')
-        print("hi!")
-        print("encryptedVals: ", encryptedVals)
-        #print(type(encryptedVals[0]))
-        evaluator = Evaluator(context)
-        encsum = Ciphertext()
 
-        byteEncryptedVals = []
-        for val in encryptedVals:
-
-            byteEncryptedVals.append(float(val))
-        
-        encryptedCiphertexts = []
-        with open("add_bytes", "wb") as f:
-            for val in byteEncryptedVals:
-                f.write(val)
-                ciphertext = Ciphertext()
-                ciphertext.load(context, "add_bytes")
-                encryptedCiphertexts.append(ciphertext)
-                f.truncate(0)
-
-        for i in range(len(encryptedCiphertexts)):
-            evaluator.add_inplace(encsum, encryptedVals[i])
-        with open("add_bytes", "wb") as f:
-            f.truncate(0)
-        encsum.save("add_bytes")
-        
-        with open("add_bytes", "rb") as f:
-            encsum_bytes = f.read()
-        
-        return encsum_bytes
-        #return encsum
-    '''
 
     @app.route('/average')
     def average():
