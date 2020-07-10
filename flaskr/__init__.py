@@ -51,14 +51,16 @@ def create_app(test_config=None):
     
     @app.route('/compute')
     def compute():
-        pass
+        print(request.data)
+        return json.dumps({npm })
 
     '''
     writes + returns public and private key as a json blob
     to users in the file "keys_temp"
     '''
-    @app.route('/generateKeys')
+    @app.route('/generateKeys', methods=['POST'])
     def generateKeys():
+        print("in generateKeys")
         keygen = KeyGenerator(context)
         public_key = keygen.public_key()
         secret_key = keygen.secret_key()
@@ -84,6 +86,7 @@ def create_app(test_config=None):
         with open("keys_temp", "w") as f:
             f.write(json_data)
         
+        print("returning key_dict")
         return json.dumps(key_dict)
        
     def makebstr(fname, ctext):
