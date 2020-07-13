@@ -128,14 +128,15 @@ def average():
     return result 
 
 avg = average()
+avg.save("avg")
 
-result = Plaintext()
+# result = Plaintext()
 
-decryptor.decrypt(avg, result)
+# decryptor.decrypt(avg, result)
 
-output = DoubleVector()
+# output = DoubleVector()
 
-encoder.decode(result, output)
+# encoder.decode(result, output)
 
-print(output[0])
+# print(output[0])
 #print_vector(output)
