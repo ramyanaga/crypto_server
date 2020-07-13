@@ -48,6 +48,7 @@ def create_app(test_config=None):
     @app.route('/hello')
     def hello():
         return 'Hello, World!'
+<<<<<<< HEAD
     
     @app.route('/compute')
     def compute():
@@ -59,6 +60,34 @@ def create_app(test_config=None):
     to users in the file "keys_temp"
     '''
     @app.route('/generateKeys', methods=['POST'])
+=======
+
+    @app.route('/compute', methods=['POST', 'GET'])
+    def computation():
+        try:
+            searchword = request.args.get('key', '')
+        except KeyError:
+            return "Invalid Request"
+
+        if searchword == "ADD":
+            evaluator = Evaluator(context)
+            encsum = Ciphertext()
+            for i in range(len(encryptedVals)):
+                evaluator.add_inplace(encsum, encryptedVals[i])
+            return encsum 
+
+        elif searchword == "AVERAGE":
+            evaluator = Evaluator(context)
+            encavg = add(encryptedVals, context)
+            evaluator.multiply_place(encavg, 1/len(encryptedVals))
+            return encavg
+            
+        elif searchword == "MULTIPLY":
+            #TODO
+            pass 
+
+    @app.route('/generateKeys')
+>>>>>>> e4ef797338b5be59c2b0a25d59db452313a6d2cb
     def generateKeys():
         print("in generateKeys")
         keygen = KeyGenerator(context)
