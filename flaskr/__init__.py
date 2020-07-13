@@ -122,23 +122,51 @@ def create_app(test_config=None):
         public key: byte-formatted public key
         vector: list of elements to be encoded
         '''
+        #request_data = json.loads(request.data)
+        #print(request_data.keys())
+        #public_key_bytes = request_data["public_key"].encode('cp437') # key is stored as encoded version of bytes
         request_data = json.loads(request.data)
-        print(request_data.keys())
-        public_key_bytes = request_data["public_key"].encode('cp437') # key is stored as encoded version of bytes
+        #print(request_data.keys())
+        
         vector = request_data["vector"]
+        print("request_data: ", request_data)
+        print("original vector: ", vector)
+        print(type(vector))
+        
+        #with open("java_public_key", "r") as f:
+        #    public_key_bytes = f.read().encode('cp437')
+
+        #with open("java_public_key.txt", "r") as f:
+        #    public_key_bytes = f.read().encode('cp437')
+
+        #with open("public_key_bytes")
+
         #convert to Double Vector
         dvector = DoubleVector()
+        allNumChars = []
         for num in vector:
-            dvector.append(float(num))
+            allNumChars.append(ord(num))
+            try:
+                num = float(num)
+                dvector.append(float(num))
+            except ValueError:
+                print(ord(num))
+                print("num: ", num, " is of type: ", type(num), " problem encrypting")
+            #dvector.append(float(num))
+
+        print("allNumChars: ", allNumChars)
+        print("dvector: ", dvector)
 
         #initialize encoder
         encoder = CKKSEncoder(context)
 
         # convert public_key_bytes to PublicKey object
         public_key = PublicKey()
-        with open("public_key_bytes", "wb") as f:
-            f.write(public_key_bytes)
+        #with open("public_key_bytes", "wb") as f:
+        #    f.write(public_key_bytes)
+        #print("wrote public_key_bytes")        
         public_key.load(context, "public_key_bytes")
+        print("loaded public key")
         encryptor = Encryptor(context, public_key) 
 
         x_plain = Plaintext()
@@ -159,11 +187,13 @@ def create_app(test_config=None):
             encrypted_val = Ciphertext()
             encryptor.encrypt(encoded_val, encrypted_val)
             encrypted_vals.append(encrypted_val)
+        print("finished encrypting vals")
 
-        with open("secret_key_bytes", "rb") as f:
-            secret_key_bytes = f.read()
-        with open("secret_key_bytes", "wb") as f:
-            f.write(secret_key_bytes)
+        # WTF IS THIS CHUNK
+        # with open("secret_key_bytes", "rb") as f:
+        #     secret_key_bytes = f.read()
+        # with open("secret_key_bytes", "wb") as f:
+        #     f.write(secret_key_bytes)
         
         byte_encrypted_vals = []
         for encrypted_val in encrypted_vals:
@@ -171,14 +201,15 @@ def create_app(test_config=None):
             with open("encrypted_val_bytes", "rb") as f:
                 byte_encrypted_val = f.read()
                 byte_encrypted_vals.append(byte_encrypted_val.decode('cp437'))
-        
+        print("finished saving vals to encrypted_vals list")
+
         # below is just for testing purposes
         #json_object = json.dumps({'encrypted_vals': byte_encrypted_vals, 'vector_length': len(byte_encrypted_vals)})
         json_data = {'encrypted_vals': byte_encrypted_vals, 'vector_length': len(byte_encrypted_vals)}
         with open("encrypt_result_temp", "w") as f:
            f.write(json.dumps(json_data))
         #print("type of byte_encrypted_vals: ", type(byte_encrypted_vals))
-
+        print("returning json blob from encrypt")
         return json.dumps({'encrypted_vals': byte_encrypted_vals, 'vector_length': len(byte_encrypted_vals)})
 
     '''
