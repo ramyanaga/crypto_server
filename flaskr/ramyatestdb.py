@@ -6,18 +6,17 @@ from datetime import datetime
 from seal import *
 from seal_helper_outer import *
 
-
-def storeComputeResult(result, documentId, timestamp, computationType):
-    print("in storeComputeResult, crypto_server/ramyatestdb.py")
+def storeComputeResult(result, userId, documentId, timestamp, computationType):
+    print("in storeComputeResult, crypto_server/flaskr/ramyatestdb.py")
     conn = psycopg2.connect(database="crypto_db", user="postgres", password="", host = "127.0.0.1", port = "5432")
     print("Opened database successfully")
     cur = conn.cursor()
     string_result = '{0}'.format(result)
     values = string_result
-    query = """INSERT INTO compute_results(result, document_id, compute_time, type) \
-            VALUES (%s, %s, %s, %s);"""
+    query = """INSERT INTO compute_results(result, user_id, document_id, compute_time, type) \
+            VALUES (%s, %s, %s, %s, %s);"""
 
-    values = (string_result, documentId, timestamp, computationType) 
+    values = (string_result, userId, documentId, timestamp, computationType) 
     cur.execute(query, values)
     conn.commit()
     print("Records created successfully")

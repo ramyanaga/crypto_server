@@ -7,7 +7,6 @@ from seal_helper_outer import *
 from flask import Flask, jsonify, request
 from datetime import datetime
 from . import ramyatestdb
-#from ramyatestdb import *
 import json
 
 
@@ -162,9 +161,8 @@ def create_app(test_config=None):
 
         #convert to Double Vector
         dvector = DoubleVector()
-        allNumChars = []
+        #allNumChars = []
         for num in vector:
-            allNumChars.append(ord(num))
             try:
                 num = float(num)
                 dvector.append(float(num))
@@ -173,7 +171,7 @@ def create_app(test_config=None):
                 print("num: ", num, " is of type: ", type(num), " problem encrypting")
             #dvector.append(float(num))
 
-        print("allNumChars: ", allNumChars)
+        #print("allNumChars: ", allNumChars)
         print("dvector: ", dvector)
 
         #initialize encoder
@@ -239,6 +237,7 @@ def create_app(test_config=None):
     - decrypt with evaluator
     - return
     '''
+
     @app.route('/decrypt')
     def decrypt():
         context = SEALContext.Create(parms)
@@ -276,19 +275,6 @@ def create_app(test_config=None):
     @encryptedVals is a list of bytes representing encrypted values
     need to write each value to file, then load from file into ciphertext
     '''
-    '''
-    take in encrypted numbers as a list
-    iterate through each one and create a ciphertext object for each one
-    add them all together
-    return encrypted sum in bytes
-    '''
-
-    '''
-    add takes in list of encrypted numbers in json file
-    iterate through each one and adds them together
-    returns encrypted result
-    '''
-
     @app.route('/compute_test', methods=['GET', 'POST'])
     def compute_test():
         context = SEALContext.Create(parms)
@@ -316,11 +302,12 @@ def create_app(test_config=None):
         return "hi"
 
 
-
     @app.route('/add')
     def add():
         context = SEALContext.Create(parms)
         request_data = json.loads(request.data)
+        user_id = request_data['user_id']
+        document_id = request_data['document_id']
         encrypted_byte_vals = request_data['encrypted_vals']
         evaluator = Evaluator(context)
 
@@ -338,14 +325,23 @@ def create_app(test_config=None):
         for i in range(2, len(ciphertext_vals)):
             evaluator.add(ciphertext_vals[i], enc_result, enc_result)
 
+        time_of_computation = datetime.utcnow()
         enc_result.save("add_result_temp")
-        
+
+        with open("add_result_temp", "rb") as f:
+            enc_result_bytes = f.read()
+        enc_result_hex = enc_result_bytes.hex()
+
+        ramyatestdb.storeComputeResult(enc_result_hex, user_id, document_id, time_of_computation, "ADD")
+        '''
+        before using database
         with open("add_result_temp", "rb") as f:
             enc_result_bytes = f.read()
 
         with open("add_result_json", "w") as f:
             f.write(json.dumps({"encrypted_sum":enc_result_bytes.decode('cp437')}))            
 
+        '''
         return json.dumps({"encrypted_sum":enc_result_bytes.decode('cp437')})
 
     @app.route('/average')
