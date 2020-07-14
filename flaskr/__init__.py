@@ -5,9 +5,10 @@ from seal import *
 from seal_helper_outer import *
 
 from flask import Flask, jsonify, request
+from datetime import datetime
+from . import ramyatestdb
+#from ramyatestdb import *
 import json
-
-
 
 
 def create_app(test_config=None):
@@ -17,6 +18,9 @@ def create_app(test_config=None):
         SECRET_KEY='dev',
         DATABASE=os.path.join(app.instance_path, 'flaskr.sqlite'),
     )
+    #app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql://postgres:@localhost:5432/crypto_db"
+    #psql_db = SQLAlchemy(app)
+    #migrate = Migrate(app, psql_db)
 
     if test_config is None:
         # load the instance config, if it exists, when not testing
@@ -48,19 +52,6 @@ def create_app(test_config=None):
     @app.route('/hello')
     def hello():
         return 'Hello, World!'
-<<<<<<< HEAD
-    
-    @app.route('/compute')
-    def compute():
-        print(request.data)
-        return json.dumps({npm })
-
-    '''
-    writes + returns public and private key as a json blob
-    to users in the file "keys_temp"
-    '''
-    @app.route('/generateKeys', methods=['POST'])
-=======
 
     @app.route('/compute', methods=['POST', 'GET'])
     def computation():
@@ -84,10 +75,9 @@ def create_app(test_config=None):
             
         elif searchword == "MULTIPLY":
             #TODO
-            pass 
+            pass
 
     @app.route('/generateKeys')
->>>>>>> e4ef797338b5be59c2b0a25d59db452313a6d2cb
     def generateKeys():
         print("in generateKeys")
         keygen = KeyGenerator(context)
@@ -298,6 +288,35 @@ def create_app(test_config=None):
     iterate through each one and adds them together
     returns encrypted result
     '''
+
+    @app.route('/compute_test', methods=['GET', 'POST'])
+    def compute_test():
+        context = SEALContext.Create(parms)
+        keygen = KeyGenerator(context)
+        public_key = keygen.public_key()
+        secret_key = keygen.secret_key()
+        encryptor = Encryptor(context, public_key)
+        decryptor = Decryptor(context, secret_key)
+        evaluator = Evaluator(context)
+        encoder = CKKSEncoder(context)
+        value1 = 5
+        plain1 = Plaintext()
+        encoder.encode(value1, scale, plain1)
+        encrypted1 = Ciphertext()
+        encryptor.encrypt(plain1, encrypted1)
+        encrypted1.save("encrypted_result_db_init")
+        with open("encrypted_result_db_init", "rb") as f:
+            encrypted_result_bytes = f.read()
+        
+        encrypted_result_hex = encrypted_result_bytes.hex()
+        time = datetime.utcnow()
+        computationType = "test"
+        documentId = "100"
+        ramyatestdb.storeComputeResult(encrypted_result_hex, documentId, time, computationType)
+        return "hi"
+
+
+
     @app.route('/add')
     def add():
         context = SEALContext.Create(parms)
