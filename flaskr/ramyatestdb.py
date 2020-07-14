@@ -22,10 +22,11 @@ def storeComputeResult(result, userId, documentId, timestamp, computationType):
     print("Records created successfully")
     conn.close()
 
-def getComputationResult(documentId):
+def getComputationResult(userId, documentId):
     conn = psycopg2.connect(database="crypto_db", user="postgres", password="", host = "127.0.0.1", port = "5432")
     cur = conn.cursor()
-    query = "SELECT * from compute_results WHERE document_id = " + "'" + documentId + "';"
+    query = ("SELECT * from compute_results WHERE document_id = " + "'" + documentId + "'" + 
+            "AND user_id = " + "'" + userId + "';")
     cur.execute(query)
     rows = cur.fetchall()
     print(len(rows))
@@ -33,6 +34,15 @@ def getComputationResult(documentId):
         compute_result, documentId, timestamp, computeType = row[0], row[1], row[2], row[3]
         return bytes.fromhex(compute_result)
 
+# parms = EncryptionParameters(scheme_type.CKKS)
+
+# poly_modulus_degree = 8192
+# parms.set_poly_modulus_degree(poly_modulus_degree)
+# parms.set_coeff_modulus(CoeffModulus.Create(
+#     poly_modulus_degree, [60, 40, 40, 60]))
+
+# scale = pow(2.0, 40)
+# context = SEALContext.Create(parms)
 # keygen = KeyGenerator(context)
 # public_key = keygen.public_key()
 # secret_key = keygen.secret_key()
@@ -55,7 +65,8 @@ def getComputationResult(documentId):
 # computationType = "test"
 # storeComputeResult(encrypted_result_hex, documentId, time, computationType)
 
-# result_bytes = getComputationResult(documentId)
+# "ramya"
+# result_bytes = getComputationResult(userId, documentId)
 # with open("load_encrypted_result", "wb") as f:
 #     f.write(result_bytes)
 

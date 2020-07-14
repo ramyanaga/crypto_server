@@ -247,6 +247,8 @@ def create_app(test_config=None):
         #with open("secret_key_bytes", "rb") as f:
         #    secret_key_bytes = f.read()
         request_data = json.loads(request.data)
+        user_id = request_data['user_id']
+        document_id = request_data['document_id']
         #private_key = request_data.encode('cp437')
         secret_key = request_data["secret_key"].encode('cp437')
         with open("secret_key_bytes", "wb") as f:
@@ -254,10 +256,10 @@ def create_app(test_config=None):
         secret_key = SecretKey()
         secret_key.load(context, "secret_key_bytes")
         
-        encrypted_val = request_data["encrypted_val"].encode('cp437')
+        encrypted_val = ramyatestdb.getComputationResult(user_id, document_id)
         with open("encrypted_val_from_decrypt", "wb") as f:
             f.write(encrypted_val)
-        
+
         encrypted_val = Ciphertext()
         encrypted_val.load(context, "encrypted_val_from_decrypt")
 
