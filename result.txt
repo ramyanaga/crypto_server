@@ -1,3 +1,2 @@
 b'5ea10001cb8303000000000000000000789c3cb57738968f1f' <class 'bytes'>
-Opened database successfully
-Records created successfully
+230347

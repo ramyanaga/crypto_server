@@ -3,7 +3,7 @@ import base64
 
 from seal import *
 from seal_helper_outer import *
-
+from test/testdb import *
 from flask import Flask, jsonify, request
 import json
 
@@ -38,13 +38,7 @@ def create_app(test_config=None):
     scale = pow(2.0, 40)
     context = SEALContext.Create(parms)
 
-    # parms = EncryptionParameters(scheme_type.BFV)
-    # poly_modulus_degree = 4096
-    # parms.set_poly_modulus_degree(poly_modulus_degree)
-    # parms.set_coeff_modulus(CoeffModulus.BFVDefault(poly_modulus_degree))
-    # parms.set_plain_modulus(512)
-    # context = SEALContext.Create(parms)
-    # print_parameters(context)
+    createKeyDB()
     
     # a simple page that says hello
     @app.route('/hello')
@@ -95,6 +89,10 @@ def create_app(test_config=None):
     '''
     @app.route('/generateKeys')
     def generateKeys():
+        #Extract User's ID
+        uniqueID = request.args.get("user_id") #unsure if correct syntax
+
+        #Generate Keys
         keygen = KeyGenerator(context)
         public_key = keygen.public_key()
         secret_key = keygen.secret_key()
@@ -102,88 +100,64 @@ def create_app(test_config=None):
 
         encryptor = Encryptor(context, public_key)
         decryptor = Decryptor(context, secret_key)
-        #public_key_bytes = bytarray(public_key)
-        #secret_key_bytes = byte
-        public_key.save('public_key_bytes')
-        secret_key.save('secret_key_bytes')
-        with open("public_key_bytes", "rb") as f:
-            public_key_bytes = f.read()
-        with open("secret_key_bytes", "rb") as f:
-            secret_key_bytes = f.read()
-        with open("public_key_bytes_temp", "wb") as f:
-            f.write(public_key_bytes)
-        with open("secret_key_bytes_temp", "wb") as f:
-            f.write(secret_key_bytes)
-        print(public_key_bytes)
-        print(secret_key_bytes)
-        #key_dict = {"public_key_bytes": str(public_key_bytes),
-        #            "secret_key_bytes": str(secret_key_bytes)}
-        key_dict = {"public_key_bytes": str(public_key_bytes)}
-        return json.dumps(key_dict)
-       
+        
+        #Convert to byte strings
+        pkeystr = makebstr("pkey", public_key)
+        skeystr = makebstr("skey", secret_key)
+        rkeystr = makebstr("rkey", relin_keys)
 
-    def decodeBase64Val(val):
-        return base64.decode(val)
+        #Push keys to database
+        pushKeys(uniqueID, pkeystr, skeystr, rkeystr)
+
+        return "Keys Generated Successfully"
     
-    def decodeBase64List(encodedList):
-        decodedList = [base64.decode(val) for val in encodedList]
-        return decodedList
     
     @app.route('/encrypt', methods=['GET', 'POST'])
     def encrypt():
     #def encrypt(scale, context):
         scale = pow(2.0, 40)
         context = SEALContext.Create(parms)
-        #convert to Double Vector
-        public_key_bytes = request.data
-        #vector = request.form.get('vector') # probably should name this something more informative
-        vector = request.args.getlist('vector') # will end up being list of strings
-        dvector = DoubleVector()
-        for num in vector:
-            dvector.append(float(num))
 
-        #initialize encoder
+        fileName = "TestCSV" #request.args.get("fileName")
+        userID = request.args.get("user_id")
+        csvfile = request.args.getlist('content') # will end up being list of strings
+
+        # Process input data
+        for i in range(1,len(csvfile)):
+            csvfile[i] = DoubleVector(csvfile[i])
+
+        # Pull key from DB, and convert to PublicKey object
+        public_key = retrieveKey(userID, "PUBLICKEY")
+        public_key = loadKey("pkey", public_key, "PUBLICKEY", context)
+
+        # Initialize Encoder & Encryptor
         encoder = CKKSEncoder(context)
-
-        # convert public_key_bytes to PublicKey object
-        public_key = PublicKey()
-        with open("public_key_bytes", "wb") as f:
-            f.write(public_key_bytes)
-        public_key.load(context, "public_key_bytes")
         encryptor = Encryptor(context, public_key) 
 
-        x_plain = Plaintext()
-        x_encrypted = Ciphertext()
-
         #list of encrypted values or encrypted list? <-- Design Choice
-        #encoder.encode(dvector, scale, x_plain)
-        encoded_vals = []
-        for val in dvector:
-            plaintext_val = Plaintext()
-            encoder.encode(dvector, scale, plaintext_val)
-            encoded_vals.append(plaintext_val)
-        #encryptor.encrypt(x_plain, x_encrypted)
+        csvEncrypted = [csvfile[0]] #initialize column names (unencrypted?)
 
-        encrypted_vals = []
-        for encoded_val in encoded_vals:
-            encrypted_val = Ciphertext()
-            encryptor.encrypt(encoded_val, encrypted_val)
-            encrypted_vals.append(encrypted_val)
+        for i in range(1,len(csvfile)):
+            row = csvfile[i]
+            encRow = []
 
+            for num in row: #convert rows to encrypted bytestrings
+                xplain = Plaintext()
+                encoder.encode(num, scale, xplain)
 
-        byte_encrypted_vals = []
-        for encrypted_val in encrypted_vals:
-            encrypted_val.save("encrypted_val_bytes")
-            with open("encrypted_val_bytes", "rb") as f:
-                byte_encrypted_val = f.read()
-                byte_encrypted_vals.append(str(byte_encrypted_val))
-        
-        # below is just for testing purposes
-        json_object = json.dumps({'encrypted_vals': byte_encrypted_vals, 'vector_length': len(byte_encrypted_vals)})
-        with open("encrypt_result_temp", "w") as f:
-            f.write(json_object)
+                xenc = Ciphertext()
+                encryptor.encrypt(xplain, xenc)
 
-        return json.dumps({'encrypted_vals': byte_encrypted_vals, 'vector_length': len(byte_encrypted_vals)})
+                encStr = makebstr('bstr', xenc)
+                encRow.append(encStr)
+
+            csvEncrypted.append(encRow)
+
+        #store encrypted csv file in table
+        createCSVtable(csvEncrypted, fileName)
+        convertCSV(csvEncrypted, fileName)
+
+        return 
 
     '''
     To test decrypt, write secret key + encrypted vals as dictionary formatted as string,
@@ -307,59 +281,6 @@ def create_app(test_config=None):
         encavg.load("average_bytes")
         evaluator.multiply_place(encavg, 1/len(encryptedVals))
         return encavg
-
-    
-    
-    
-
-    # OLD, DON'T USE THIS
-    # @app.route('/add')
-    # def add(encresult_bytes, context):
-    #     with open("add_bytes", "wb") as f:
-    #         f.write(encresult_bytes)
-    #     encresult = Ciphertext()
-    #     encresult.load(context, 'add_bytes')
-
-    #     evaluator = Evaluator(context)
-    #     encsum = Ciphertext()
-
-    #     evaluator.add_many(encresult, encsum)
-
-    #     encsum.save()
-    #     return encsum 
-    
-
-
-    # @app.route('/encrypt')
-    # def encrypt(vector, scale, context, public_key):
-    #     #convert to Double Vector
-    #     dvector = DoubleVector()
-    #     for num in vector:
-    #         dvector.append(num)
-
-    #     #initialize objects
-        
-    #     encoder = CKKSEncoder(context)
-    #     encryptor = Encryptor(context, public_key) 
-
-    #     x_plain = Plaintext()
-    #     x_encrypted = Ciphertext()
-
-    #     #list of encrypted values or encrypted list? <-- Design Choice
-    #     encoder.encode(dvector, scale, x_plain)
-    #     encryptor.encrypt(x_plain, x_encrypted)
-
-    #     return (x_encrypted, len(vector)) #enc = EncryptedVector(len(vector), dvector)
-    
-    # @app.route('/decrypt')
-    # def decrypt(encresult, context, secret_key):
-    #     decryptor = Decryptor(context, secret_key)
-    #     plainresult = Plaintext()
-
-    #     decryptor.decrypt(encresult, plainresult)
-
-    #     #can return a vectorized result?
-    #     return plainresult
 
     @app.route('/test')
     def test():

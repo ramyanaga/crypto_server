@@ -1,9 +1,30 @@
 import psycopg2
+from seal import *
 import json
 import base64
 import binascii
 
-def createDB():
+def makebstr(fname, ctext):
+    ctext.save(fname)
+
+    with open(fname, mode='rb') as file:
+        filehex = file.read().hex()
+
+    return filehex.decode('utf8')
+
+def loadctext(fname, bstr):
+
+    xenc = Ciphertext()
+    b = bstr.encode('utf8')
+
+    with open(fname, mode='wb') as file:
+        file.write(b)
+    
+    xenc.load(context, fname)
+
+    return xenc
+
+def createkeyDB():
     conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
     print("Opened database successfully")
 
@@ -12,7 +33,8 @@ def createDB():
     cur.execute('''CREATE TABLE SEAL
         (NAME           TEXT    NOT NULL,
         PUBLICKEY      TEXT     NOT NULL,
-        SECRETKEY      TEXT);''')
+        SECRETKEY      TEXT     NOT NULL,
+        RELINKEY       TEXT);''')
 
     print("Table created successfully")
 
@@ -20,14 +42,14 @@ def createDB():
     conn.close()
 
 
-def pushKeys(uniqueID, pkeystr, skeystr):
+def pushKeys(uniqueID, pkeystr, skeystr, rkeystr=""):
     conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
     print("Opened database successfully")
 
     cur = conn.cursor()
 
-    cur.execute("INSERT INTO SEAL (NAME,PUBLICKEY,SECRETKEY) \
-        VALUES (" + uniqueID + "," + pkeystr + "," + skeystr + ")");
+    cur.execute("INSERT INTO SEAL (NAME,PUBLICKEY,SECRETKEY, RELINKEY) \
+        VALUES (" + uniqueID + "," + pkeystr + "," + skeystr + "," + rkeystr + ");")
 
     conn.commit()
     print("Records created successfully")
@@ -50,6 +72,24 @@ def retrieveKey(keyType):
     print("Operation done successfully")
     conn.close()
 
+def loadKey(fname, keystr, keytype, context):
+    
+    k = binascii.unhexlify(keystr.encode('utf8'))
+
+    if keytype == "PUBLICKEY":
+        with open(fname, mode='wb') as file:
+            file.write(k)
+        kenc = PublicKey()
+        kenc.load(context, fname)
+
+    elif keytype == "PRIVATEKEY":
+        with open(fname, mode='wb') as file:
+            file.write(k)
+        kenc = SecretKey()
+        kenc.load(context, fname)
+
+    return kenc
+
 # createDB()
 # pushKeys("'jul'", "'5'", "'6'")
 # retrieveKey("publickey")
@@ -59,15 +99,15 @@ def createCSVtable(csvJson, fileName):
     print("Opened database successfully")
 
     cur = conn.cursor()
+    
+    csv_ = csvJson #json.loads(csvJson)["content"]
 
     executestr = "CREATE TABLE " + fileName + " ("
-    csv_ = json.loads(csvJson)["content"]
-
     for item in csv_[0]:                #temporary woraround
         executestr += item
-        executestr += " BYTEA,"
+        executestr += " TEXT,"
     
-    executestr = executestr[:-1] + ");" #optimize, proabably better way
+    executestr = executestr[:-1] + ");" #optimize, proabably better way to remove that last comma
 
     cur.execute(executestr)
 
@@ -82,8 +122,8 @@ def convertCSV(csvJson, fileName):
 
     cur = conn.cursor()
 
-    csv_ = json.loads(csvJson)["content"]
-    print(csv_)
+    csv_ = csvJson#json.loads(csvJson)["content"]
+    #print(csv_)
 
     items = "INSERT INTO " + fileName + " ("    #could be optimizeed
     for item in csv_[0]:
@@ -91,7 +131,7 @@ def convertCSV(csvJson, fileName):
     items = items[:-1] + ") " + "VALUES "       #temporary workaround
 
     for i in range(1, len(csv_)):
-        executestr = items + str(tuple(csv_[i])) #+ "'"
+        executestr = items + str(tuple(csv_[i])) + ";"
         cur.execute(executestr);
 
     conn.commit()
@@ -173,6 +213,7 @@ def playg2(bstr, fileName):
     print("Records created successfully")
     conn.close()
 
-#playg("ttt")
-#playg2(fs, "ttt")
-#print(fs[-20:], type(fs), len(fcontenth))
+# playg("ttt")
+# print(len(filecontent))
+# playg2(fs, "ttt")
+# print(fs[-20:], type(fs), len(fcontenth))
