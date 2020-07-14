@@ -303,12 +303,18 @@ def create_app(test_config=None):
 
 
     @app.route('/add')
-    def add():
+    def add(encrypted_byte_vals_param=None):
         context = SEALContext.Create(parms)
         request_data = json.loads(request.data)
-        user_id = request_data['user_id']
-        document_id = request_data['document_id']
-        encrypted_byte_vals = request_data['encrypted_vals']
+        
+        # won't be none if add is called from average
+        if encrypted_byte_vals_param == None:
+            user_id = request_data['user_id']
+            document_id = request_data['document_id']
+            encrypted_byte_vals = request_data['encrypted_vals']
+        else:
+            encrypted_byte_vals = encrypted_byte_vals_param
+        
         evaluator = Evaluator(context)
 
         ciphertext_vals = []
@@ -324,6 +330,10 @@ def create_app(test_config=None):
         evaluator.add(ciphertext_vals[0], ciphertext_vals[1], enc_result)
         for i in range(2, len(ciphertext_vals)):
             evaluator.add(ciphertext_vals[i], enc_result, enc_result)
+
+        # if encrypted_byte_vals_param != None, want to return result to average
+        if encrypted_byte_vals_param != None:
+            return enc_result
 
         time_of_computation = datetime.utcnow()
         enc_result.save("add_result_temp")
@@ -347,14 +357,25 @@ def create_app(test_config=None):
     @app.route('/average')
     def average():
         context = SEALContext.Create(parms)
-        encryptedVals = request.form.get('ints')
+        request_data = json.loads(request.data)
+        user_id = request_data['user_id']
+        document_id = request_data['document_id']
+        encryptedVals = request_data['encrypted_vals']
         evaluator = Evaluator(context)
-        encavg_bytes = add(encryptedVals, context)
-        with open("average_bytes", "wb") as f:
-            f.write(encavg_bytes)
+        encsum = add(encryptedVals)
+        encoder = CKKSEncoder(context)
+        scale = pow(2.0, 40)
+        length_plaintext = Plaintext()
+        encoder.encode(1/len(encryptedVals), scale, length_plaintext)
         encavg = Ciphertext()
-        encavg.load("average_bytes")
-        evaluator.multiply_place(encavg, 1/len(encryptedVals))
-        return encavg
+        evaluator.multiply_plain(encsum, length_plaintext, encavg)
+        time_of_computation = datetime.utcnow()
+
+        encavg.save("avg_result_temp")
+        with open("avg_result_temp", "rb") as f:
+            enc_result_bytes = f.read()
+        enc_result_hex = enc_result_bytes.hex()
+        ramyatestdb.storeComputeResult(enc_result_hex, user_id, document_id, time_of_computation, "AVERAGE")
+        return "done with average"
     
     return app
