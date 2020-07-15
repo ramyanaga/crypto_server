@@ -3,7 +3,7 @@ import base64
 
 from seal import *
 from seal_helper_outer import *
-
+from testdb import *
 from flask import Flask, jsonify, request
 from datetime import datetime
 from . import ramyatestdb
@@ -46,6 +46,12 @@ def create_app(test_config=None):
 
     scale = pow(2.0, 40)
     context = SEALContext.Create(parms)
+<<<<<<< HEAD
+=======
+
+    dropTable("KEYS")
+    createKeyDB()
+>>>>>>> dbase
     
     # a simple page that says hello
     @app.route('/hello')
@@ -60,6 +66,7 @@ def create_app(test_config=None):
             return "Invalid Request"
 
         if searchword == "ADD":
+<<<<<<< HEAD
             evaluator = Evaluator(context)
             encsum = Ciphertext()
             for i in range(len(encryptedVals)):
@@ -79,6 +86,48 @@ def create_app(test_config=None):
     @app.route('/generateKeys')
     def generateKeys():
         print("in generateKeys")
+=======
+            column = request.args.getlist('encrypted_vals')
+
+            context = SEALContext.Create(parms)
+            encryptedVals = request.args.getlist('nums')
+            evaluator = Evaluator(context)
+            encsum = Ciphertext()
+            encryptedVector = []
+
+            for val in encryptedVals:
+                encryptedVector.append(float(val))
+
+            encryptedVector = DoubleVector(encryptedVector)
+            encsum = Ciphertext()
+
+            for i in range(len(encryptedVector)):
+                evaluator.add_inplace(encsum, encryptedVector[i])
+
+            encsum.save('add_bytes')
+
+            with open("add_bytes", 'rb') as f:
+                encsum_bytes = f.read()
+            
+            return json.dumps({'encrypted_sum': str(encsum_bytes)})
+
+        elif searchword == "AVERAGE":
+            pass
+        elif searchword == "MULTIPLY":
+            #TODO
+            pass 
+
+    '''
+    write public key to file, write secret key to file
+    return base64encoded version of those 2 files
+    '''
+    @app.route('/generateKeys', methods=['GET', 'POST'])
+    def generateKeys():
+        #Extract User's ID
+        uniqueID = "AdrianTest" #request.args.get("user_id") #unsure if correct syntax
+
+        #Generate Keys
+>>>>>>> dbase
         keygen = KeyGenerator(context)
         public_key = keygen.public_key()
         secret_key = keygen.secret_key()
@@ -86,6 +135,7 @@ def create_app(test_config=None):
         relin_keys = keygen.relin_keys()
         encryptor = Encryptor(context, public_key)
         decryptor = Decryptor(context, secret_key)
+<<<<<<< HEAD
         public_key.save('public_key_bytes')
         secret_key.save('secret_key_bytes')
 
@@ -128,12 +178,27 @@ def create_app(test_config=None):
         xenc.load(context, fname)
 
         return xenc
+=======
+        
+        #Convert to byte strings
+        pkeystr = makebstr("pkey", public_key)
+        skeystr = makebstr("skey", secret_key)
+        rkeystr = makebstr("rkey", relin_keys)
+
+        #Push keys to database
+        print(uniqueID, type(pkeystr), type(skeystr), type(rkeystr))
+        pushKeys(uniqueID, pkeystr, skeystr, rkeystr)
+
+        return "Keys Generated Successfully"
+    
+>>>>>>> dbase
     
     # TODO: figure out how to pass in global scale and context, rather than re-initialize
     @app.route('/encrypt', methods=['GET', 'POST'])
     def encrypt():
         scale = pow(2.0, 40)
         context = SEALContext.Create(parms)
+<<<<<<< HEAD
 
         '''
         function expects request body to be json blob with 2 fields:
@@ -185,11 +250,27 @@ def create_app(test_config=None):
         public_key.load(context, "public_key_bytes")
         print("loaded public key")
         encryptor = Encryptor(context, public_key) 
+=======
 
-        x_plain = Plaintext()
-        x_encrypted = Ciphertext()
+        fileName = "TestCSV" #request.args.get("fileName")
+        userID = "AdrianTest" #request.args.get("user_id")
+        csvfile = request.args.getlist('content') # will end up being list of strings
+        print("CSV: ", csvfile)
+        # Process input data
+        for i in range(1,len(csvfile)):
+            csvfile[i] = DoubleVector(csvfile[i])
+>>>>>>> dbase
+
+        # Pull key from DB, and convert to PublicKey object
+        public_key = retrieveKey(userID, "PUBLICKEY")
+        public_key = loadKey("pkey", public_key, "PUBLICKEY", context)
+
+        # Initialize Encoder & Encryptor
+        encoder = CKKSEncoder(context)
+        encryptor = Encryptor(context, public_key) 
 
         #list of encrypted values or encrypted list? <-- Design Choice
+<<<<<<< HEAD
         #encoder.encode(dvector, scale, x_plain)
         encoded_vals = []
         for val in dvector:
@@ -228,6 +309,31 @@ def create_app(test_config=None):
         #print("type of byte_encrypted_vals: ", type(byte_encrypted_vals))
         print("returning json blob from encrypt")
         return json.dumps({'encrypted_vals': byte_encrypted_vals, 'vector_length': len(byte_encrypted_vals)})
+=======
+        csvEncrypted = [csvfile[0]] #initialize column names (unencrypted?)
+
+        for i in range(1,len(csvfile)):
+            row = csvfile[i]
+            encRow = []
+
+            for num in row: #convert rows to encrypted bytestrings
+                xplain = Plaintext()
+                encoder.encode(num, scale, xplain)
+
+                xenc = Ciphertext()
+                encryptor.encrypt(xplain, xenc)
+
+                encStr = makebstr('bstr', xenc)
+                encRow.append(encStr)
+
+            csvEncrypted.append(encRow)
+
+        #store encrypted csv file in table
+        createCSVtable(csvEncrypted, fileName)
+        convertCSV(csvEncrypted, fileName)
+
+        return 
+>>>>>>> dbase
 
     '''
     Decrypt Steps:
@@ -263,6 +369,7 @@ def create_app(test_config=None):
         encrypted_val = Ciphertext()
         encrypted_val.load(context, "encrypted_val_from_decrypt")
 
+<<<<<<< HEAD
         decryptor = Decryptor(context, secret_key)
         encoder = CKKSEncoder(context)
         decrypted_val = Plaintext()
@@ -273,6 +380,9 @@ def create_app(test_config=None):
         print(output[0])
         return json.dumps({"decrypted_value": output[0]})
     
+=======
+
+>>>>>>> dbase
     '''
     @encryptedVals is a list of bytes representing encrypted values
     need to write each value to file, then load from file into ciphertext
@@ -280,11 +390,18 @@ def create_app(test_config=None):
     @app.route('/compute_test', methods=['GET', 'POST'])
     def compute_test():
         context = SEALContext.Create(parms)
+<<<<<<< HEAD
         keygen = KeyGenerator(context)
         public_key = keygen.public_key()
         secret_key = keygen.secret_key()
         encryptor = Encryptor(context, public_key)
         decryptor = Decryptor(context, secret_key)
+=======
+        encryptedVals = request.args.getlist('nums')
+
+        print(encryptedVals)
+
+>>>>>>> dbase
         evaluator = Evaluator(context)
         encoder = CKKSEncoder(context)
         value1 = 5
@@ -318,6 +435,7 @@ def create_app(test_config=None):
             encrypted_byte_vals = encrypted_byte_vals_param
         
         evaluator = Evaluator(context)
+<<<<<<< HEAD
 
         ciphertext_vals = []
         for val in encrypted_byte_vals:
@@ -358,6 +476,24 @@ def create_app(test_config=None):
 
     @app.route('/average')
     def average():
+=======
+        encavg_bytes = add(encryptedVals, context)
+        with open("average_bytes", "wb") as f:
+            f.write(encavg_bytes)
+        encavg = Ciphertext()
+        encavg.load("average_bytes")
+        evaluator.multiply_place(encavg, 1/len(encryptedVals))
+        return encavg
+
+    @app.route('/test')
+    def test():
+        print_example_banner("Example: Encoders / Integer Encoder")
+        parms = EncryptionParameters(scheme_type.BFV)
+        poly_modulus_degree = 4096
+        parms.set_poly_modulus_degree(poly_modulus_degree)
+        parms.set_coeff_modulus(CoeffModulus.BFVDefault(poly_modulus_degree))
+        parms.set_plain_modulus(512)
+>>>>>>> dbase
         context = SEALContext.Create(parms)
         request_data = json.loads(request.data)
         user_id = request_data['user_id']
