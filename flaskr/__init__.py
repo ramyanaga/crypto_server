@@ -5,6 +5,7 @@ from seal import *
 from seal_helper_outer import *
 from testdb import *
 from flask import Flask, jsonify, request
+from testdb import *
 from datetime import datetime
 from . import ramyatestdb
 import json
@@ -17,9 +18,6 @@ def create_app(test_config=None):
         SECRET_KEY='dev',
         DATABASE=os.path.join(app.instance_path, 'flaskr.sqlite'),
     )
-    #app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql://postgres:@localhost:5432/crypto_db"
-    #psql_db = SQLAlchemy(app)
-    #migrate = Migrate(app, psql_db)
 
     if test_config is None:
         # load the instance config, if it exists, when not testing
@@ -47,8 +45,11 @@ def create_app(test_config=None):
     scale = pow(2.0, 40)
     context = SEALContext.Create(parms)
 
-    dropTable("KEYS")
-    createKeyDB()
+    try:
+        dropTable("KEYS")
+    except psycopg2.errors.UndefinedTable:
+        pass
+    #createKeyDB()
     
     # a simple page that says hello
     @app.route('/hello')
@@ -93,19 +94,12 @@ def create_app(test_config=None):
             #TODO
             pass 
 
-    '''
-    write public key to file, write secret key to file
-    return base64encoded version of those 2 files
-    '''
-    '''
-    write public key to file, write secret key to file
-    return base64encoded version of those 2 files
-    '''
     @app.route('/generateKeys', methods=['GET', 'POST'])
     def generateKeys():
         #Extract User's ID
-        uniqueID = "AdrianTest" #request.args.get("user_id") #unsure if correct syntax
-
+        #uniqueID = "AdrianTest" #request.args.get("user_id") #unsure if correct syntax
+        uniqueID = "ramya"
+         
         #Generate Keys
         keygen = KeyGenerator(context)
         public_key = keygen.public_key()
@@ -125,38 +119,18 @@ def create_app(test_config=None):
         pushKeys(uniqueID, pkeystr, skeystr, rkeystr)
 
         return "Keys Generated Successfully"
-       
-    def makebstr(fname, ctext):
-        ctext.save(fname)
-
-        with open(fname, mode='rb') as file:
-            filecontent = file.read()
-        
-        #filecontent = bytearray(filecontent)
-
-        return filecontent.decode('cp437')
-
-    def loadctext(fname, bstr):
-
-        xenc = Ciphertext()
-        b = bstr.encode('cp437')
-
-        with open(fname, mode='wb') as file:
-            file.write(b)
-        
-        xenc.load(context, fname)
-
-        return xenc
     
     @app.route('/encrypt', methods=['GET', 'POST'])
     def encrypt():
-    #def encrypt(scale, context):
         scale = pow(2.0, 40)
         context = SEALContext.Create(parms)
 
         fileName = "TestCSV" #request.args.get("fileName")
-        userID = "AdrianTest" #request.args.get("user_id")
-        csvfile = request.args.getlist('content') # will end up being list of strings
+        #userID = "AdrianTest" #request.args.get("user_id")
+        userID = "ramya"
+        request_data = json.loads(request.data)
+        csvfile = request_data['content']
+        #csvfile = request.args.getlist('content') # will end up being list of strings
         print("CSV: ", csvfile)
         # Process input data
         for i in range(1,len(csvfile)):
@@ -193,135 +167,57 @@ def create_app(test_config=None):
         createCSVtable(csvEncrypted, fileName)
         convertCSV(csvEncrypted, fileName)
 
-        return 
-
-    '''
-    Decrypt Steps:
-    - open json file with private key and value to be decrypted
-    - create key object from private key
-    - create ciphertext object from value
-    - decrypt with evaluator
-    - return
-    '''
-
-    @app.route('/decrypt')
-    def decrypt():
-        context = SEALContext.Create(parms)
-        #data_dict = json.loads(request.data)
-        #private_key = 
-        #encrypted_byte_vals = data_dict['encrypted_sum']
-        #with open("secret_key_bytes", "rb") as f:
-        #    secret_key_bytes = f.read()
-        request_data = json.loads(request.data)
-        user_id = request_data['user_id']
-        document_id = request_data['document_id']
-        #private_key = request_data.encode('cp437')
-        secret_key = request_data["secret_key"].encode('cp437')
-        with open("secret_key_bytes", "wb") as f:
-            f.write(secret_key)
-        secret_key = SecretKey()
-        secret_key.load(context, "secret_key_bytes")
-        
-        encrypted_val = ramyatestdb.getComputationResult(user_id, document_id)
-        with open("encrypted_val_from_decrypt", "wb") as f:
-            f.write(encrypted_val)
-
-        encrypted_val = Ciphertext()
-        encrypted_val.load(context, "encrypted_val_from_decrypt")
-
-        decryptor = Decryptor(context, secret_key)
-        encoder = CKKSEncoder(context)
-        decrypted_val = Plaintext()
-        decryptor.decrypt(encrypted_val, decrypted_val)
-        output = DoubleVector()
-        encoder.decode(decrypted_val, output)
-        print(output)
-        print(output[0])
-        return json.dumps({"decrypted_value": output[0]})
-    
-
-    '''
-    @encryptedVals is a list of bytes representing encrypted values
-    need to write each value to file, then load from file into ciphertext
-    '''
-    @app.route('/compute_test', methods=['GET', 'POST'])
-    def compute_test():
-        context = SEALContext.Create(parms)
-        keygen = KeyGenerator(context)
-        public_key = keygen.public_key()
-        secret_key = keygen.secret_key()
-        encryptor = Encryptor(context, public_key)
-        decryptor = Decryptor(context, secret_key)
-        evaluator = Evaluator(context)
-        encoder = CKKSEncoder(context)
-        value1 = 5
-        plain1 = Plaintext()
-        encoder.encode(value1, scale, plain1)
-        encrypted1 = Ciphertext()
-        encryptor.encrypt(plain1, encrypted1)
-        encrypted1.save("encrypted_result_db_init")
-        with open("encrypted_result_db_init", "rb") as f:
-            encrypted_result_bytes = f.read()
-        
-        encrypted_result_hex = encrypted_result_bytes.hex()
-        time = datetime.utcnow()
-        computationType = "test"
-        documentId = "100"
-        ramyatestdb.storeComputeResult(encrypted_result_hex, documentId, time, computationType)
-        return "hi"
+        return "done with encryption"
 
 
     @app.route('/add')
-    def add(encrypted_byte_vals_param=None):
-        context = SEALContext.Create(parms)
-        request_data = json.loads(request.data)
-        
-        # won't be none if add is called from average
-        if encrypted_byte_vals_param == None:
-            user_id = request_data['user_id']
-            document_id = request_data['document_id']
-            encrypted_byte_vals = request_data['encrypted_vals']
-        else:
-            encrypted_byte_vals = encrypted_byte_vals_param
-        
+    def add(from_average = False):
+        fileName = "TestCSV" #request.args.get("fileName")
+        userID = "ramya"
+        columnNames = ["salary1", "salary2"]
+        encrypted_data = retrieveData(columnNames, fileName)
+        encryptedResults = []
         evaluator = Evaluator(context)
+        for col in columnNames:
+            
+            hexVals = encrypted_data[col]
+            
+            colEncryptedBytes = []
+            enc_result = Ciphertext()
 
-        ciphertext_vals = []
-        for val in encrypted_byte_vals:
-            val = val.encode('cp437')
-            with open("add_encrypted_bytes_temp", "wb") as f:
-                f.write(val)
-            ciphertext = Ciphertext()
-            ciphertext.load(context, "add_encrypted_bytes_temp")
-            ciphertext_vals.append(ciphertext)
+            hexVal1Bytes = bytes.fromhex(hexVals[0])
+            with open("hex_val_bytes_temp", "wb") as f:
+                f.write(hexVal1Bytes)
+            enc_val1 = Ciphertext()
+            enc_val1.load(context, "hex_val_bytes_temp")
+
+            hexVal2Bytes = bytes.fromhex(hexVals[1])
+            with open("hex_val_bytes_temp", "wb") as f:
+                f.write(hexVal2Bytes)
+            enc_val2 = Ciphertext()
+            enc_val2.load(context, "hex_val_bytes_temp")
+
+            evaluator.add(enc_val1, enc_val2, enc_result)
+            
+            for i in range(2, len(hexVals)):
+                
+                bytesFromHexVal = bytes.fromhex(hexVals[i])
+                with open("add_encrypted_bytes_temp", "wb") as f:
+                    f.write(bytes_val)
+                encrypted_val = Ciphertext()
+                encrypted_val.load(context, "add_encrypted_bytes_temp")
+                evaluator.add(encrypted_val, enc_result, enc_result)
+            
+            encryptedResults.append(enc_result)
         
-        enc_result = Ciphertext()
-        evaluator.add(ciphertext_vals[0], ciphertext_vals[1], enc_result)
-        for i in range(2, len(ciphertext_vals)):
-            evaluator.add(ciphertext_vals[i], enc_result, enc_result)
+        if from_average:
+            return (columnNames, encryptedResults)
 
-        # if encrypted_byte_vals_param != None, want to return result to average
-        if encrypted_byte_vals_param != None:
-            return enc_result
-
-        time_of_computation = datetime.utcnow()
-        enc_result.save("add_result_temp")
-
-        with open("add_result_temp", "rb") as f:
-            enc_result_bytes = f.read()
-        enc_result_hex = enc_result_bytes.hex()
-
-        ramyatestdb.storeComputeResult(enc_result_hex, user_id, document_id, time_of_computation, "ADD")
-        '''
-        before using database
-        with open("add_result_temp", "rb") as f:
-            enc_result_bytes = f.read()
-
-        with open("add_result_json", "w") as f:
-            f.write(json.dumps({"encrypted_sum":enc_result_bytes.decode('cp437')}))            
-
-        '''
-        return json.dumps({"encrypted_sum":enc_result_bytes.decode('cp437')})
+        timestamp = datetime.utcnow()
+        computationType = "ADD"
+        ramyatestdb.storeComputeResult(userID, fileName, encryptedResults, columnNames, timestamp, computationType)
+        return "done with addition"
+        
 
     @app.route('/average')
     def average():
@@ -346,5 +242,35 @@ def create_app(test_config=None):
         enc_result_hex = enc_result_bytes.hex()
         ramyatestdb.storeComputeResult(enc_result_hex, user_id, document_id, time_of_computation, "AVERAGE")
         return "done with average"
+
+    @app.route('/decrypt')
+    def decrypt():
+        context = SEALContext.Create(parms)
+        userID = "ramya"
+        document_id = "TestCSV"
+
+        secret_key = retrieveKey(userID, "SECRETKEY")
+        secret_key = loadKey("load_secret_key_temp", secret_key, "SECRETKEY", context)
+
+        decryptor = Decryptor(context, secret_key)
+        encoder = CKKSEncoder(context)
+
+        colEncryptedResultMap = ramyatestdb.getComputationResult(userID, document_id)
+        colDecryptedResultMap = {}
+
+        for col in colEncryptedResultMap:
+            result = colEncryptedResultMap[col]
+            with open("encrypted_val_from_decrypt", "wb") as f:
+                f.write(bytes.fromhex(result))
+            encrypted_val = Ciphertext()
+            encrypted_val.load(context, "encrypted_val_from_decrypt")
+
+            decrypted_val = Plaintext()
+            decryptor.decrypt(encrypted_val, decrypted_val)
+            output = DoubleVector()
+            encoder.decode(decrypted_val, output)
+            colDecryptedResultMap[col] = output[0]
+            
+        return json.dumps(colDecryptedResultMap)
     
     return app

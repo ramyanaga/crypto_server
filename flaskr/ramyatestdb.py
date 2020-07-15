@@ -6,33 +6,47 @@ from datetime import datetime
 from seal import *
 from seal_helper_outer import *
 
-def storeComputeResult(result, userId, documentId, timestamp, computationType):
-    print("in storeComputeResult, crypto_server/flaskr/ramyatestdb.py")
-    conn = psycopg2.connect(database="crypto_db", user="postgres", password="", host = "127.0.0.1", port = "5432")
+
+
+def storeComputeResult(userId, documentId, results, fileColumns, timestamp, computationType):
+    conn = psycopg2.connect(database="crypto_db2", user="postgres", password="", host = "127.0.0.1", port = "5432")
     print("Opened database successfully")
     cur = conn.cursor()
-    string_result = '{0}'.format(result)
-    values = string_result
-    query = """INSERT INTO compute_results(result, user_id, document_id, compute_time, type) \
-            VALUES (%s, %s, %s, %s, %s);"""
+    hexResults = []
+    for r in results:
+        r.save("result_bytes_temp")
+        with open("result_bytes_temp", "rb") as f:
+            result_hex = f.read().hex()
+            hexResults.append('{0}'.format(result_hex))
+    
+    query = """INSERT INTO compute_results(user_id, document_id, result, file_columns, compute_time, type) \
+            VALUES (%s, %s, %s, %s, %s, %s);"""
+    
 
-    values = (string_result, userId, documentId, timestamp, computationType) 
+    values = (userId, documentId, hexResults, fileColumns, timestamp, computationType) 
     cur.execute(query, values)
     conn.commit()
     print("Records created successfully")
     conn.close()
 
 def getComputationResult(userId, documentId):
-    conn = psycopg2.connect(database="crypto_db", user="postgres", password="", host = "127.0.0.1", port = "5432")
+    conn = psycopg2.connect(database="crypto_db2", user="postgres", password="", host = "127.0.0.1", port = "5432")
     cur = conn.cursor()
-    query = ("SELECT * from compute_results WHERE document_id = " + "'" + documentId + "'" + 
-            "AND user_id = " + "'" + userId + "';")
+    user_id = '{0}'.format(userId)
+    document_id = '{0}'.format(documentId)
+    query = "SELECT * from compute_results WHERE document_id = '" + document_id + "' AND user_id = '" + user_id + "';"
     cur.execute(query)
     rows = cur.fetchall()
-    print(len(rows))
+    
     for row in rows:
-        compute_result, documentId, timestamp, computeType = row[0], row[1], row[2], row[3]
-        return bytes.fromhex(compute_result)
+        user_id, document_id, results, timestamp, computationType, file_columns = row[0], row[1], row[2], row[3], row[4], row[5]
+
+    columnResultMap = {}
+    for i in range(len(file_columns)):
+        col, result = file_columns[i], results[i]
+        columnResultMap[col] = result
+
+    return columnResultMap
 
 # parms = EncryptionParameters(scheme_type.CKKS)
 

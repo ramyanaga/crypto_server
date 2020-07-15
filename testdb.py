@@ -39,7 +39,8 @@ def loadctext(fname, bstr, context):
 
 
 def createKeyDB():
-    conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
+    #conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
+    conn = psycopg2.connect(database = "crypto_db2", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
     print("Opened database successfully")
 
     cur = conn.cursor()
@@ -56,7 +57,8 @@ def createKeyDB():
     conn.close()
 
 def pushKeys(uniqueID, pkeystr, skeystr, rkeystr=""):
-    conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
+    #conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
+    conn = psycopg2.connect(database = "crypto_db2", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
     print("Opened database successfully")
 
     cur = conn.cursor()
@@ -69,7 +71,8 @@ def pushKeys(uniqueID, pkeystr, skeystr, rkeystr=""):
     conn.close()
 
 def retrieveKey(userID, keyType): #modify to get most recent key for certain user
-    conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
+    #conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
+    conn = psycopg2.connect(database = "crypto_db2", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
     print("Opened database successfully")
 
     cur = conn.cursor()
@@ -92,7 +95,7 @@ def loadKey(fname, keystr, keytype, context):
         kenc = PublicKey()
         kenc.load(context, fname)
 
-    elif keytype == "PRIVATEKEY":
+    elif keytype == "SECRETKEY":
         with open(fname, mode='wb') as file:
             file.write(k)
         kenc = SecretKey()
@@ -102,7 +105,8 @@ def loadKey(fname, keystr, keytype, context):
 
 
 def createCSVtable(csvList, fileName):
-    conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
+    #conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
+    conn = psycopg2.connect(database = "crypto_db2", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
     print("Opened database successfully")
 
     cur = conn.cursor()
@@ -124,7 +128,8 @@ def createCSVtable(csvList, fileName):
     conn.close()
 
 def convertCSV(csvList, fileName):
-    conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
+    #conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
+    conn = psycopg2.connect(database = "crypto_db2", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
     print("Opened database successfully")
 
     cur = conn.cursor()
@@ -137,7 +142,9 @@ def convertCSV(csvList, fileName):
     items = items[:-1] + ") " + "VALUES "       #temporary workaround
 
     for i in range(1, len(csv_)):
+        
         executestr = items + str(tuple(csv_[i])) + ";"
+        print(executestr)
         cur.execute(executestr);
 
     conn.commit()
@@ -145,7 +152,8 @@ def convertCSV(csvList, fileName):
     conn.close()
 
 def retrieveData(columnNames, fileName):
-    conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
+    #conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
+    conn = psycopg2.connect(database = "crypto_db2", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
     print("Opened database successfully")
 
     cur = conn.cursor()
