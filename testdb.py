@@ -4,6 +4,13 @@ import json
 import binascii
 
 def dropTable(tableName):
+    '''
+    delete table from database
+    inputs:
+        tableName: string of table you wish to delete
+    output:
+        None
+    '''
     conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
     print("Opened database successfully")
 
@@ -18,6 +25,14 @@ def dropTable(tableName):
     conn.close()
 
 def makebstr(fname, ctext):
+    '''
+    Create a byte string from a Ciphertext object
+    inputs:
+        fname: Arbitrary filename to write and load bytes from
+        ctext: Ciphertext object
+    output:
+        string representing Ciphertext object data
+    '''
     ctext.save(fname)
 
     with open(fname, mode='rb') as file:
@@ -26,7 +41,15 @@ def makebstr(fname, ctext):
     return filehex.decode('utf8')
 
 def loadctext(fname, bstr, context):
-
+    '''
+    Load a Ciphertext object from a saved byte string
+    inputs:
+        fname: Arbitrary filename to write and load bytes from
+        bstr: string representing the byte data of a Ciphertext object
+        context: Sealcontext object
+    output:
+        xenc: Ciphertext object loaded with input byte string
+    '''
     xenc = Ciphertext()
     b = bstr.encode('utf8')
     b = binascii.unhexlify(b)
@@ -40,6 +63,13 @@ def loadctext(fname, bstr, context):
 
 
 def createKeyDB():
+    '''
+    Create Database table to store keys associated with a certain user
+    inputs:
+        None
+    output:
+        None
+    '''
     conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
     print("Opened database successfully")
 
@@ -57,6 +87,16 @@ def createKeyDB():
     conn.close()
 
 def pushKeys(uniqueID, pkeystr, skeystr, rkeystr=""):
+    '''
+    Insert keys into database
+    inputs:
+        uniqueID: string of owner of key's ID
+        pkeystr: string representing private key
+        skeystr: string representing secret key
+        rkeystr: string representing relinearization keys
+    output:
+        None
+    '''
     conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
     print("Opened database successfully")
 
@@ -70,6 +110,15 @@ def pushKeys(uniqueID, pkeystr, skeystr, rkeystr=""):
     conn.close()
 
 def retrieveKey(userID, keyType): #modify to get most recent key for certain user
+    '''
+    Retrieve key stored in database
+    inputs:
+        userID: string of owner of key's ID
+        keyType: string specifying what type of key is being retrieved
+            e.g. "PUBLICKEY" or "SECRETKEY"
+    output:
+        rows[0][0]: string of bytes representing the saved key
+    '''
     conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
     print("Opened database successfully")
 
@@ -84,7 +133,17 @@ def retrieveKey(userID, keyType): #modify to get most recent key for certain use
     return rows[0][0]
 
 def loadKey(fname, keystr, keytype, context):
-    
+    '''
+    Load Key object from provided byte string
+    inputs:
+        fname: Arbitrary filename to write and load bytes from
+        keystr: string of bytes representing the stored key value
+        keytype: string specifying what type of key is being loaded
+            e.g. "PUBLICKEY" or "SECRETKEY"
+        context: Sealcontext object to load paramaters
+    output:
+        kenc: Key object loaded with input keystr
+    '''
     k = binascii.unhexlify(keystr.encode('utf8'))   #convert to original bytes
 
     if keytype == "PUBLICKEY":
@@ -103,6 +162,16 @@ def loadKey(fname, keystr, keytype, context):
 
 
 def createCSVtable(csvList, fileName):
+    '''
+    Creates table in the database corresponding to given file
+    inputs:
+        csvList: List of lists representing csv data
+            e.g. [["names", "salary"],[1.0 , 3.5],[2 , 5.4]]
+        fileName: name of file, i.e. name of table where data stored
+            e.g. "test.csv"
+    outputs:
+        None
+    '''
     conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
     print("Opened database successfully")
 
@@ -125,6 +194,16 @@ def createCSVtable(csvList, fileName):
     conn.close()
 
 def convertCSV(csvList, fileName):
+    '''
+    Populates table in database with file contents
+    inputs:
+        csvList: List of lists representing csv data
+            e.g. [["names", "salary"],[1.0 , 3.5],[2 , 5.4]]
+        fileName: name of file, i.e. name of table where data stored
+            e.g. "test.csv"
+    outputs:
+        None
+    '''
     conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
     print("Opened database successfully")
 
@@ -146,6 +225,17 @@ def convertCSV(csvList, fileName):
     conn.close()
 
 def retrieveData(columnNames, fileName):
+    '''
+    Retrieve columns from table in database
+    inputs:
+        columnNames: List of column names (strings) you want to retrieve data from
+            e.g. ["names", "salary"]
+        fileName: name of file, i.e. name of table where data stored
+            e.g. "test.csv"
+    output:
+        data: dictionary of columns and their corresponding values
+            e.g. {"names": ["bytestr", "bytestr", ...]}
+    '''
     conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
     print("Opened database successfully")
 
