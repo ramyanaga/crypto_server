@@ -3,7 +3,7 @@ import base64
 
 from seal import *
 from seal_helper_outer import *
-from test/testdb import *
+from testdb import *
 from flask import Flask, jsonify, request
 import json
 
@@ -38,6 +38,7 @@ def create_app(test_config=None):
     scale = pow(2.0, 40)
     context = SEALContext.Create(parms)
 
+    dropTable("KEYS")
     createKeyDB()
     
     # a simple page that says hello
@@ -87,10 +88,10 @@ def create_app(test_config=None):
     write public key to file, write secret key to file
     return base64encoded version of those 2 files
     '''
-    @app.route('/generateKeys')
+    @app.route('/generateKeys', methods=['GET', 'POST'])
     def generateKeys():
         #Extract User's ID
-        uniqueID = request.args.get("user_id") #unsure if correct syntax
+        uniqueID = "AdrianTest" #request.args.get("user_id") #unsure if correct syntax
 
         #Generate Keys
         keygen = KeyGenerator(context)
@@ -107,6 +108,7 @@ def create_app(test_config=None):
         rkeystr = makebstr("rkey", relin_keys)
 
         #Push keys to database
+        print(uniqueID, type(pkeystr), type(skeystr), type(rkeystr))
         pushKeys(uniqueID, pkeystr, skeystr, rkeystr)
 
         return "Keys Generated Successfully"
@@ -119,9 +121,9 @@ def create_app(test_config=None):
         context = SEALContext.Create(parms)
 
         fileName = "TestCSV" #request.args.get("fileName")
-        userID = request.args.get("user_id")
+        userID = "AdrianTest" #request.args.get("user_id")
         csvfile = request.args.getlist('content') # will end up being list of strings
-
+        print("CSV: ", csvfile)
         # Process input data
         for i in range(1,len(csvfile)):
             csvfile[i] = DoubleVector(csvfile[i])

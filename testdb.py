@@ -1,18 +1,31 @@
 import psycopg2
 from seal import *
 import json
-import base64
 import binascii
+
+def dropTable(tableName):
+    conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
+    print("Opened database successfully")
+
+    cur = conn.cursor()
+
+    exstr = "DROP TABLE " + tableName + ";"
+    cur.execute(exstr)
+
+    print("Table dropped")
+
+    conn.commit()
+    conn.close()
 
 def makebstr(fname, ctext):
     ctext.save(fname)
 
     with open(fname, mode='rb') as file:
-        filehex = file.read().hex()
+        filehex = binascii.hexlify(file.read()) #file.read().hex()
 
     return filehex.decode('utf8')
 
-def loadctext(fname, bstr):
+def loadctext(fname, bstr, context):
 
     xenc = Ciphertext()
     b = bstr.encode('utf8')
@@ -24,13 +37,14 @@ def loadctext(fname, bstr):
 
     return xenc
 
-def createkeyDB():
+
+def createKeyDB():
     conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
     print("Opened database successfully")
 
     cur = conn.cursor()
 
-    cur.execute('''CREATE TABLE SEAL
+    cur.execute('''CREATE TABLE KEYS
         (NAME           TEXT    NOT NULL,
         PUBLICKEY      TEXT     NOT NULL,
         SECRETKEY      TEXT     NOT NULL,
@@ -41,40 +55,36 @@ def createkeyDB():
     conn.commit()
     conn.close()
 
-
 def pushKeys(uniqueID, pkeystr, skeystr, rkeystr=""):
     conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
     print("Opened database successfully")
 
     cur = conn.cursor()
 
-    cur.execute("INSERT INTO SEAL (NAME,PUBLICKEY,SECRETKEY, RELINKEY) \
-        VALUES (" + uniqueID + "," + pkeystr + "," + skeystr + "," + rkeystr + ");")
+    exstr = "INSERT INTO KEYS (NAME,PUBLICKEY,SECRETKEY, RELINKEY) VALUES ('{0}', '{1}', '{2}', '{3}');".format(uniqueID, pkeystr, skeystr, rkeystr)
+    cur.execute(exstr)
 
     conn.commit()
     print("Records created successfully")
     conn.close()
 
-def retrieveKey(keyType):
+def retrieveKey(userID, keyType): #modify to get most recent key for certain user
     conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
     print("Opened database successfully")
 
     cur = conn.cursor()
 
-    cur.execute("SELECT name, " + keyType + " from SEAL")
+    cur.execute("SELECT " + keyType + " from KEYS")
     rows = cur.fetchall()
-    print(rows, type(rows))
-    for row in rows:
-        print(row, type(row))
-        print("NAME = ", row[0])
-        print("KEY = ", row[1], "\n")
 
     print("Operation done successfully")
     conn.close()
+    print("Key snippet: ", rows[0][0][:20])
+    return rows[0][0]
 
 def loadKey(fname, keystr, keytype, context):
     
-    k = binascii.unhexlify(keystr.encode('utf8'))
+    k = binascii.unhexlify(keystr.encode('utf8'))   #convert to original bytes
 
     if keytype == "PUBLICKEY":
         with open(fname, mode='wb') as file:
@@ -90,17 +100,14 @@ def loadKey(fname, keystr, keytype, context):
 
     return kenc
 
-# createDB()
-# pushKeys("'jul'", "'5'", "'6'")
-# retrieveKey("publickey")
 
-def createCSVtable(csvJson, fileName):
+def createCSVtable(csvList, fileName):
     conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
     print("Opened database successfully")
 
     cur = conn.cursor()
     
-    csv_ = csvJson #json.loads(csvJson)["content"]
+    csv_ = csvList #json.loads(csvJson)["content"]
 
     executestr = "CREATE TABLE " + fileName + " ("
     for item in csv_[0]:                #temporary woraround
@@ -116,14 +123,13 @@ def createCSVtable(csvJson, fileName):
     conn.commit()
     conn.close()
 
-def convertCSV(csvJson, fileName):
+def convertCSV(csvList, fileName):
     conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
     print("Opened database successfully")
 
     cur = conn.cursor()
 
-    csv_ = csvJson#json.loads(csvJson)["content"]
-    #print(csv_)
+    csv_ = csvList  #json.loads(csvJson)["content"]
 
     items = "INSERT INTO " + fileName + " ("    #could be optimizeed
     for item in csv_[0]:
@@ -153,67 +159,38 @@ def retrieveData(columnNames, fileName):
     return data 
 
 
-with open("avg", mode='rb') as file:
-        filecontent = file.read()
-        fcontenth = binascii.hexlify(filecontent)
-        fcontent1 = base64.b64encode(filecontent)
-        fcontent2 = filecontent.decode('cp437')
+# with open("avg", mode='rb') as file:
+#         filecontent = file.read()
+#         fcontenth = binascii.hexlify(filecontent)
 
-#print(fcontent1, type(fcontent1))
-print(fcontenth[:50], type(fcontenth))
-fsd = binascii.unhexlify(fcontenth)
-fs = fcontenth.decode('utf8')
-#fs = bytes(fs, 'utf8')
-#print(fs[:50], type(fs))
-#fh = hex()
-# print(filecontent == fsd)
+# fsd = binascii.unhexlify(fcontenth)
+# fs = fcontenth.decode('utf8')
 
+# def playg(fileName):
+#     conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
+#     print("Opened database successfully")
 
-csvJson = {
-    "content":[["names", "jobs", "salaries"],[fsd,fsd,fsd]],
-    "document_id":"864078e3-d825-49a8-987a-f11bba05e525",
-   "user_id":"908408a4-7b33-4306-8c01-29e656e04d38"
-    }
+#     cur = conn.cursor()
 
-# csvJson = json.dumps(csvJson)
+#     executestr = "CREATE TABLE " + fileName + " (bstr TEXT);" #optimize, proabably better way
 
-fileName = "testff" #"864078e3-d825-49a8-987a-f11bba05e525"
+#     cur.execute(executestr)
 
-# createCSVtable(csvJson, fileName)
-# convertCSV(csvJson, fileName)
-# data = retrieveData(["names", "salaries"], fileName)
-# print(data)
+#     print("Table created successfully")
 
-def playg(fileName):
-    conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
-    print("Opened database successfully")
+#     conn.commit()
+#     conn.close()
 
-    cur = conn.cursor()
+# def playg2(bstr, fileName):
+#     conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
+#     print("Opened database successfully")
 
-    executestr = "CREATE TABLE " + fileName + " (bstr TEXT);" #optimize, proabably better way
+#     cur = conn.cursor()
 
-    cur.execute(executestr)
+#     executestr = "INSERT INTO " + fileName + " (bstr) VALUES ('{0}');".format(bstr)
 
-    print("Table created successfully")
+#     cur.execute(executestr);
 
-    conn.commit()
-    conn.close()
-
-def playg2(bstr, fileName):
-    conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
-    print("Opened database successfully")
-
-    cur = conn.cursor()
-
-    executestr = "INSERT INTO " + fileName + " (bstr) VALUES ('{0}');".format(bstr)
-
-    cur.execute(executestr);
-
-    conn.commit()
-    print("Records created successfully")
-    conn.close()
-
-# playg("ttt")
-# print(len(filecontent))
-# playg2(fs, "ttt")
-# print(fs[-20:], type(fs), len(fcontenth))
+#     conn.commit()
+#     print("Records created successfully")
+#     conn.close()
