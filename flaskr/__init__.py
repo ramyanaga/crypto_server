@@ -37,6 +37,7 @@ def create_app(test_config=None):
 
     scale = pow(2.0, 40)
     context = SEALContext.Create(parms)
+    encoder = CKKSEncoder(context)
 
     dropTable("KEYS")
     createKeyDB()
@@ -118,12 +119,12 @@ def create_app(test_config=None):
     def encrypt():
     #def encrypt(scale, context):
         scale = pow(2.0, 40)
-        context = SEALContext.Create(parms)
+        # context = SEALContext.Create(parms)
 
         fileName = "TestCSV" #request.args.get("fileName")
         userID = "AdrianTest" #request.args.get("user_id")
-        csvfile = request.args.getlist('content') # will end up being list of strings
-        print("CSV: ", csvfile)
+        csvfile = request.json['content'] # will end up being list of strings
+        print("CSV: ", csvfile, "\n")
         # Process input data
         for i in range(1,len(csvfile)):
             csvfile[i] = DoubleVector(csvfile[i])
@@ -133,7 +134,7 @@ def create_app(test_config=None):
         public_key = loadKey("pkey", public_key, "PUBLICKEY", context)
 
         # Initialize Encoder & Encryptor
-        encoder = CKKSEncoder(context)
+        # encoder = CKKSEncoder(context)
         encryptor = Encryptor(context, public_key) 
 
         #list of encrypted values or encrypted list? <-- Design Choice
@@ -156,11 +157,43 @@ def create_app(test_config=None):
             csvEncrypted.append(encRow)
 
         #store encrypted csv file in table
+        dropTable(fileName)
         createCSVtable(csvEncrypted, fileName)
         convertCSV(csvEncrypted, fileName)
 
-        return 
+        return "Data successfully inputted"
 
+    @app.route('/checkData', methods=['GET', 'POST'])
+    def checkData():
+
+        d = retrieveData(["salary1", "salary3"], "TestCSV")
+
+        for col in d:
+            encVals = []
+            for val in d[col]:
+                encVal = loadctext('bstr', val, context)
+                encVals.append(encVal)
+            d[col] = encVals
+
+        print(d, "\n")
+
+        userID = "AdrianTest"
+        secret_key = retrieveKey(userID, "SECRETKEY")
+        secret_key = loadKey("skey", secret_key, "SECRETKEY", context)
+
+        out = DoubleVector()
+        decryptor = Decryptor(context, secret_key)
+
+        for item in d["salary1"]:
+            result = Plaintext()
+            decryptor.decrypt(item, result)
+            output = DoubleVector()
+            encoder.decode(result, output)
+            out.append(output[0]) 
+        
+        print_vector(out)
+
+        return "data check successful"
     '''
     To test decrypt, write secret key + encrypted vals as dictionary formatted as string,
     can load that into request.data for decrypt

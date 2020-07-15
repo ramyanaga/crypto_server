@@ -12,7 +12,7 @@ def dropTable(tableName):
     exstr = "DROP TABLE " + tableName + ";"
     cur.execute(exstr)
 
-    print("Table dropped")
+    print(tableName, "Table dropped", "\n")
 
     conn.commit()
     conn.close()
@@ -29,6 +29,7 @@ def loadctext(fname, bstr, context):
 
     xenc = Ciphertext()
     b = bstr.encode('utf8')
+    b = binascii.unhexlify(b)
 
     with open(fname, mode='wb') as file:
         file.write(b)
@@ -50,7 +51,7 @@ def createKeyDB():
         SECRETKEY      TEXT     NOT NULL,
         RELINKEY       TEXT);''')
 
-    print("Table created successfully")
+    print("Table created successfully", "\n")
 
     conn.commit()
     conn.close()
@@ -65,7 +66,7 @@ def pushKeys(uniqueID, pkeystr, skeystr, rkeystr=""):
     cur.execute(exstr)
 
     conn.commit()
-    print("Records created successfully")
+    print("Records created successfully", "\n")
     conn.close()
 
 def retrieveKey(userID, keyType): #modify to get most recent key for certain user
@@ -79,7 +80,7 @@ def retrieveKey(userID, keyType): #modify to get most recent key for certain use
 
     print("Operation done successfully")
     conn.close()
-    print("Key snippet: ", rows[0][0][:20])
+    print("Key snippet: ", rows[0][0][:20], "\n")
     return rows[0][0]
 
 def loadKey(fname, keystr, keytype, context):
@@ -92,7 +93,7 @@ def loadKey(fname, keystr, keytype, context):
         kenc = PublicKey()
         kenc.load(context, fname)
 
-    elif keytype == "PRIVATEKEY":
+    elif keytype == "SECRETKEY":
         with open(fname, mode='wb') as file:
             file.write(k)
         kenc = SecretKey()
@@ -118,7 +119,7 @@ def createCSVtable(csvList, fileName):
 
     cur.execute(executestr)
 
-    print("Table created successfully")
+    print("Table created successfully", "\n")
 
     conn.commit()
     conn.close()
@@ -141,7 +142,7 @@ def convertCSV(csvList, fileName):
         cur.execute(executestr);
 
     conn.commit()
-    print("Records created successfully")
+    print("Records created successfully", "\n")
     conn.close()
 
 def retrieveData(columnNames, fileName):
@@ -158,7 +159,9 @@ def retrieveData(columnNames, fileName):
     
     return data 
 
+# d = retrieveData(["salary1", "salary3"], "TestCSV")
 
+# print(d)
 # with open("avg", mode='rb') as file:
 #         filecontent = file.read()
 #         fcontenth = binascii.hexlify(filecontent)
