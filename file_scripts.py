@@ -15,6 +15,8 @@ import json
 #     file_data = json.loads(f.read())
 #     json_data["encrypted_vals"] = file_data["encrypted_vals"]
 
+# json_data['user_id'] = "ramya"
+# json_data['document_id'] = "101"
 # with open("add_request_data", "w") as f:
 #     f.write(json.dumps(json_data))
 
@@ -27,6 +29,9 @@ with open("add_result_json", "r") as f:
     file_data = json.loads(f.read())
     json_data["encrypted_val"] = file_data["encrypted_sum"]
 
+json_data["user_id"] = "ramya"
+json_data["document_id"] = "101"
 with open("decrypt_request_data", "w") as f:
     f.write(json.dumps(json_data))
+
 
