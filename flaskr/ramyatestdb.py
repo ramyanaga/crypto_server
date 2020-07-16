@@ -9,6 +9,7 @@ from seal_helper_outer import *
 
 
 def storeComputeResult(userId, documentId, results, fileColumns, timestamp, computationType):
+    print("in storeComputeResult")
     conn = psycopg2.connect(database="crypto_db2", user="postgres", password="", host = "127.0.0.1", port = "5432")
     print("Opened database successfully")
     cur = conn.cursor()
@@ -42,51 +43,9 @@ def getComputationResult(userId, documentId):
         user_id, document_id, results, timestamp, computationType, file_columns = row[0], row[1], row[2], row[3], row[4], row[5]
 
     columnResultMap = {}
+    file_columns = ['salary1', 'salary2']
     for i in range(len(file_columns)):
         col, result = file_columns[i], results[i]
         columnResultMap[col] = result
 
     return columnResultMap
-
-# parms = EncryptionParameters(scheme_type.CKKS)
-
-# poly_modulus_degree = 8192
-# parms.set_poly_modulus_degree(poly_modulus_degree)
-# parms.set_coeff_modulus(CoeffModulus.Create(
-#     poly_modulus_degree, [60, 40, 40, 60]))
-
-# scale = pow(2.0, 40)
-# context = SEALContext.Create(parms)
-# keygen = KeyGenerator(context)
-# public_key = keygen.public_key()
-# secret_key = keygen.secret_key()
-# encryptor = Encryptor(context, public_key)
-# evaluator = Evaluator(context)
-# decryptor = Decryptor(context, secret_key)
-# encoder = CKKSEncoder(context)
-# value1 = 5
-# plain1 = Plaintext()
-# encoder.encode(value1, scale, plain1)
-# encrypted1 = Ciphertext()
-# encryptor.encrypt(plain1, encrypted1)
-# encrypted1.save("encrypted_result_db")
-# with open("encrypted_result_db", "rb") as f:
-#     encrypted_result_bytes = f.read()
-
-# encrypted_result_hex = encrypted_result_bytes.hex()
-# documentId = "3"
-# time = datetime.utcnow()
-# computationType = "test"
-# storeComputeResult(encrypted_result_hex, documentId, time, computationType)
-
-# "ramya"
-# result_bytes = getComputationResult(userId, documentId)
-# with open("load_encrypted_result", "wb") as f:
-#     f.write(result_bytes)
-
-# load_result = Ciphertext()
-# load_result.load(context, "load_encrypted_result")
-# plain_result = Plaintext()
-# decryptor.decrypt(load_result, plain_result)
-# output = DoubleVector()
-# encoder.decode(plain_result, output)
