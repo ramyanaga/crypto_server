@@ -59,40 +59,27 @@ def create_app(test_config=None):
     @app.route('/compute', methods=['POST', 'GET'])
     def computation():
         try:
-            searchword = request.args.get('key', '')
+            computation_type = request.args.get('key', '')
         except KeyError:
             return "Invalid Request"
+        
+        fileName = "TestCSV" # will come from request body?
+        userID = "ramya" # will come from request body?
+        columnNames = ["salary1", "salary2"]
+        encrypted_data = retrieveData(columnNames, fileName)
+        evaluator = Evaluator(context)
 
-        if searchword == "ADD":
-            column = request.args.getlist('encrypted_vals')
+        if computation_type == "ADD":
+            encrypted_result, timestamp = add(encrypted_data, columnNames)
+            ramyatestdb.storeComputeResult(userID, fileName, encrypted_result, columnNames, timestamp, "ADD")
+            return "done with addition"
 
-            context = SEALContext.Create(parms)
-            encryptedVals = request.args.getlist('nums')
-            evaluator = Evaluator(context)
-            encsum = Ciphertext()
-            encryptedVector = []
-
-            for val in encryptedVals:
-                encryptedVector.append(float(val))
-
-            encryptedVector = DoubleVector(encryptedVector)
-            encsum = Ciphertext()
-
-            for i in range(len(encryptedVector)):
-                evaluator.add_inplace(encsum, encryptedVector[i])
-
-            encsum.save('add_bytes')
-
-            with open("add_bytes", 'rb') as f:
-                encsum_bytes = f.read()
-            
-            return json.dumps({'encrypted_sum': str(encsum_bytes)})
-
-        elif searchword == "AVERAGE":
-            pass
-        elif searchword == "MULTIPLY":
-            #TODO
-            pass 
+        elif computation_type == "AVERAGE":
+            encrypted_result, timestamp = average(encrypted_data, columnNames)
+            ramyatestdb.storeComputeResult(userID, fileName, encrypted_result, columnNames, timestamp, "AVERAGE")
+            return "done with average"
+        
+        ramyatestdb.storeComputeResult(userID, fileName, encrypted_result, columnNames, timestamp, computation_type)
 
     @app.route('/generateKeys', methods=['GET', 'POST'])
     def generateKeys():
@@ -171,11 +158,7 @@ def create_app(test_config=None):
 
 
     @app.route('/add')
-    def add(from_average = False):
-        fileName = "TestCSV" #request.args.get("fileName")
-        userID = "ramya"
-        columnNames = ["salary1", "salary2"]
-        encrypted_data = retrieveData(columnNames, fileName)
+    def add(encrypted_data, columnNames):
         encryptedResults = []
         evaluator = Evaluator(context)
         for col in columnNames:
@@ -203,45 +186,37 @@ def create_app(test_config=None):
                 
                 bytesFromHexVal = bytes.fromhex(hexVals[i])
                 with open("add_encrypted_bytes_temp", "wb") as f:
-                    f.write(bytes_val)
+                    f.write(bytesFromHexVal)
                 encrypted_val = Ciphertext()
                 encrypted_val.load(context, "add_encrypted_bytes_temp")
                 evaluator.add(encrypted_val, enc_result, enc_result)
             
             encryptedResults.append(enc_result)
         
-        if from_average:
-            return (columnNames, encryptedResults)
-
         timestamp = datetime.utcnow()
-        computationType = "ADD"
-        ramyatestdb.storeComputeResult(userID, fileName, encryptedResults, columnNames, timestamp, computationType)
-        return "done with addition"
+        return encryptedResults, timestamp
         
 
     @app.route('/average')
-    def average():
+    def average(encrypted_data, columnNames):
         context = SEALContext.Create(parms)
-        request_data = json.loads(request.data)
-        user_id = request_data['user_id']
-        document_id = request_data['document_id']
-        encryptedVals = request_data['encrypted_vals']
-        evaluator = Evaluator(context)
-        encsum = add(encryptedVals)
-        encoder = CKKSEncoder(context)
+        user_id = "ramya"
+        document_id = "TestCSV"
         scale = pow(2.0, 40)
-        length_plaintext = Plaintext()
-        encoder.encode(1/len(encryptedVals), scale, length_plaintext)
-        encavg = Ciphertext()
-        evaluator.multiply_plain(encsum, length_plaintext, encavg)
-        time_of_computation = datetime.utcnow()
-
-        encavg.save("avg_result_temp")
-        with open("avg_result_temp", "rb") as f:
-            enc_result_bytes = f.read()
-        enc_result_hex = enc_result_bytes.hex()
-        ramyatestdb.storeComputeResult(enc_result_hex, user_id, document_id, time_of_computation, "AVERAGE")
-        return "done with average"
+        encoder = CKKSEncoder(context)
+        
+        evaluator = Evaluator(context)
+        encsums, timestamp = add(encrypted_data, columnNames)
+        column_length = len(encrypted_data[columnNames[0]])
+        encavg_result = []
+        for encsum in encsums:
+            length_plaintext = Plaintext()
+            encoder.encode(1/column_length, scale, length_plaintext)
+            encavg = Ciphertext()
+            evaluator.multiply_plain(encsum, length_plaintext, encavg)
+            encavg_result.append(encavg)
+        timestamp = datetime.utcnow()
+        return encavg_result, timestamp
 
     @app.route('/decrypt')
     def decrypt():
