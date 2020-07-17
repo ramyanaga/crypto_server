@@ -87,19 +87,16 @@ def create_app(test_config=None):
 
         evaluator = Evaluator(context)
 
-        computation_type = "ADD"
+        computation_type = "AVERAGE"
         if computation_type == "ADD":
             encrypted_result, timestamp = add(encrypted_data, file_cols)
             ramyatestdb.storeComputeResult(document_id, file_cols, encrypted_result, timestamp, "ADD")
             return json.dumps({"message": "done with addition"})
 
-        # TODO: bug fixing in average
         elif computation_type == "AVERAGE":
-            encrypted_result, timestamp = average(encrypted_data, columnNames)
-            ramyatestdb.storeComputeResult(document_id, file_cols, encrypted_result, timestamp, "ADD")
-            #ramyatestdb.storeComputeResult(userID, fileName, encrypted_result, columnNames, timestamp, "AVERAGE")
+            encrypted_result, timestamp = average(encrypted_data, file_cols)
+            ramyatestdb.storeComputeResult(document_id, file_cols, encrypted_result, timestamp, "AVERAGE")
             return json.dumps({"message": "done with average"})
-            #return "done with average"
         
         #ramyatestdb.storeComputeResult(document_id, encrypted_result, columnNames, timestamp, computation_type)
         #ramyatestdb.storeComputeResult(userID, fileName, encrypted_result, columnNames, timestamp, computation_type)
@@ -109,12 +106,8 @@ def create_app(test_config=None):
         #Extract User's ID
         #uniqueID = "AdrianTest" #request.args.get("user_id") #unsure if correct syntax
         body = json.loads(request.data.decode('utf-8'))
-        #json_body = json.loads(request.data)
 
         uniqueID = body['user_id']
-        
-
-        #uniqueID = "ramya"
          
         #Generate Keys
         keygen = KeyGenerator(context)
@@ -260,9 +253,10 @@ def create_app(test_config=None):
 
     @app.route('/average')
     def average(encrypted_data, columnNames):
+        print("in average")
         context = SEALContext.Create(parms)
-        user_id = "ramya"
-        document_id = "TestCSV"
+        #user_id = "ramya"
+        #document_id = "TestCSV"
         scale = pow(2.0, 40)
         encoder = CKKSEncoder(context)
         

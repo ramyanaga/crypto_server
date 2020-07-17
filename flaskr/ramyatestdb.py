@@ -8,7 +8,6 @@ from seal_helper_outer import *
 
 
 
-#def storeComputeResult(userId, documentId, results, fileColumns, timestamp, computationType):
 def storeComputeResult(documentId, fileColumns, results, timeStamp, computationType):
     print("in storeComputeResult")
     conn = psycopg2.connect(database="crypto_db2", user="postgres", password="", host = "127.0.0.1", port = "5432")
@@ -20,10 +19,6 @@ def storeComputeResult(documentId, fileColumns, results, timeStamp, computationT
         with open("result_bytes_temp", "rb") as f:
             result_hex = f.read().hex()
             hexResults.append('{0}'.format(result_hex))
-    
-
-    #query = """INSERT INTO compute_results(user_id, document_id, result, file_columns, compute_time, type) \
-    #        VALUES (%s, %s, %s, %s, %s, %s);"""
 
     query = """INSERT INTO compute_results(document_id, result, file_columns, compute_time, type) \
             VALUES (%s, %s, %s, %s, %s);"""
