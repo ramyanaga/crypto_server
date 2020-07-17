@@ -25,24 +25,16 @@ def storeComputeResult(documentId, fileColumns, results, timeStamp, computationT
     #query = """INSERT INTO compute_results(user_id, document_id, result, file_columns, compute_time, type) \
     #        VALUES (%s, %s, %s, %s, %s, %s);"""
 
-    query = """INSERT INTO compute_results(document_id, result, fileColumns, compute_time, type) \
-            VALUES (%s, %s, %s, %s);"""
+    query = """INSERT INTO compute_results(document_id, result, file_columns, compute_time, type) \
+            VALUES (%s, %s, %s, %s, %s);"""
     
-
-    #values = (userId, documentId, hexResults, fileColumns, timestamp, computationType)
     fileColumnsStr = "("
     for col in fileColumns:
         fileColumnsStr += col + ","
     fileColumnsStr += ")"
-
-    print("fileColumnsType: ", type(fileColumns), type(fileColumns[0]))
-
-    print(type(documentId))
-    print(type(hexResults), type(hexResults[0]))
-    print(type(fileColumnsStr))
-    print(type(timeStamp))
-    print(type(computationType))
-    values = (documentId, hexResults, fileColumnsStr, timeStamp, computationType,) 
+    
+    documentId = "{0}".format(documentId)
+    values = (documentId, hexResults, fileColumns, timeStamp, computationType) 
     cur.execute(query, values)
     conn.commit()
     print("Records created successfully")
@@ -59,10 +51,9 @@ def getComputationResult(userId, documentId):
     rows = cur.fetchall()
     
     for row in rows:
-        user_id, document_id, results, timestamp, computationType, file_columns = row[0], row[1], row[2], row[3], row[4], row[5]
+        user_id_none, document_id, results, file_columns, timestamp, comp_type = row[0], row[1], row[2], row[3], row[4], row[5]
 
     columnResultMap = {}
-    file_columns = ['salary1', 'salary2']
     for i in range(len(file_columns)):
         col, result = file_columns[i], results[i]
         columnResultMap[col] = result

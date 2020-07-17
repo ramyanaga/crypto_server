@@ -56,44 +56,6 @@ def create_app(test_config=None):
     @app.route('/hello')
     def hello():
         return 'Hello, World!'
-    
-    @app.route('/checkData', methods=['GET', 'POST'])
-    def checkData():
-
-        #d = retrieveData(["salary1", "salary3"], "TestCSV")
-
-        document_id = "{0}".format("61e7be3a-31c3-4bad-9d0c-9fb3bfd767ef")
-        d = retrieveData(["column0", "column1"], document_id)
-
-        for col in d:
-            encVals = []
-            for val in d[col]:
-                encVal = loadctext('bstr', val, context)
-                encVals.append(encVal)
-            d[col] = encVals
-
-        print(d, "\n")
-
-        #userID = "AdrianTest"
-        userID = "50474c4b-bc70-4c6b-8fdf-be3a16f27348"
-        userID = "{0}".format(userID)
-        secret_key = retrieveKey(userID, "SECRETKEY")
-        secret_key = loadKey("skey", secret_key, "SECRETKEY", context)
-
-        out = DoubleVector()
-        decryptor = Decryptor(context, secret_key)
-
-        #for item in d["salary1"]:
-        for item in d["column1"]:
-            result = Plaintext()
-            decryptor.decrypt(item, result)
-            output = DoubleVector()
-            encoder.decode(result, output)
-            out.append(output[0]) 
-        
-        print_vector(out)
-
-        return "data check successful"
 
     @app.route('/compute', methods=['POST', 'GET'])
     def computation():
@@ -105,45 +67,37 @@ def create_app(test_config=None):
         requestBody = json.loads(request.data.decode('utf-8'))
         print(requestBody)
         print(request.args)
-        rows_and_cols = request.args.get('key')
-        rows_and_cols = rows_and_cols[10:] # ignore until the 9th index b/c of the 'undefined('
-        alpha_list = list(string.ascii_uppercase)
-        columnNames = []
-        
-        counter = 0
-        while rows_and_cols[counter] in alpha_list:
-            columnNames.append('column' + str(alpha_list.index(rows_and_cols[counter])))
-            counter += 1
-            if rows_and_cols[counter] not in alpha_list:
-                break
-        
-        print(columnNames)
+        computation_args = request.args.get('key')
 
+        computation_type = computation_args[:computation_args.index('(')]
+        args = computation_args[computation_args.index('(') + 1 : computation_args.index(')')]
+        args = args.split(',')
+        cols = [a for a in args if a in string.ascii_uppercase]
+        rows = [a for a in args if a not in string.ascii_uppercase]
+        file_cols = ["column" + str(list(string.ascii_uppercase).index(c)) for c in cols]
+        print("file_cols: ", file_cols)
+               
         document_id = requestBody['document_id']
         document_id = '{0}'.format(document_id)
-        print("computation_type: ", computation_type)
+
         #fileName = "TestCSV" # will come from request body?
         #userID = "ramya" # will come from request body?
         
-        #columnNames = ["salary1", "salary2"]
-        #encrypted_data = retrieveData(columnNames, fileName)
-        encrypted_data = retrieveData(columnNames, document_id)
+        encrypted_data = retrieveData(file_cols, document_id)
+
         evaluator = Evaluator(context)
 
         computation_type = "ADD"
         if computation_type == "ADD":
-            encrypted_result, timestamp = add(encrypted_data, columnNames)
-            print("timestamp from add: ", timestamp)
-            #encrypted_result, timestamp = add(encrypted_data)
-            #ramyatestdb.storeComputeResult(userID, fileName, encrypted_result, columnNames, timestamp, "ADD")
-            
-            ramyatestdb.storeComputeResult(document_id, columnNames, encrypted_result, timestamp, "ADD")
+            encrypted_result, timestamp = add(encrypted_data, file_cols)
+            ramyatestdb.storeComputeResult(document_id, file_cols, encrypted_result, timestamp, "ADD")
             return json.dumps({"message": "done with addition"})
 
         # TODO: bug fixing in average
         elif computation_type == "AVERAGE":
             encrypted_result, timestamp = average(encrypted_data, columnNames)
-            ramyatestdb.storeComputeResult(userID, fileName, encrypted_result, columnNames, timestamp, "AVERAGE")
+            ramyatestdb.storeComputeResult(document_id, file_cols, encrypted_result, timestamp, "ADD")
+            #ramyatestdb.storeComputeResult(userID, fileName, encrypted_result, columnNames, timestamp, "AVERAGE")
             return json.dumps({"message": "done with average"})
             #return "done with average"
         
@@ -325,24 +279,21 @@ def create_app(test_config=None):
         timestamp = datetime.utcnow()
         return encavg_result, timestamp
 
-    @app.route('/decrypt')
+    @app.route('/decrypt', methods=['GET', 'POST'])
     def decrypt():
         context = SEALContext.Create(parms)
-        #userID = "ramya"
-        #document_id = "TestCSV"
         requestBody = json.loads(request.data.decode('utf-8'))
-        print(requestBody)
         user_id = requestBody['user_id']
         document_id = requestBody['document_id']
         document_id = '{0}'.format(document_id)
 
-        secret_key = retrieveKey(userID, "SECRETKEY")
+        secret_key = retrieveKey(user_id, "SECRETKEY")
         secret_key = loadKey("load_secret_key_temp", secret_key, "SECRETKEY", context)
 
         decryptor = Decryptor(context, secret_key)
         encoder = CKKSEncoder(context)
 
-        colEncryptedResultMap = ramyatestdb.getComputationResult(userID, document_id)
+        colEncryptedResultMap = ramyatestdb.getComputationResult(user_id, document_id)
         colDecryptedResultMap = {}
 
         for col in colEncryptedResultMap:
@@ -357,7 +308,8 @@ def create_app(test_config=None):
             output = DoubleVector()
             encoder.decode(decrypted_val, output)
             colDecryptedResultMap[col] = output[0]
-            
+        
+        print(colDecryptedResultMap)
         return json.dumps(colDecryptedResultMap)
     
     return app
