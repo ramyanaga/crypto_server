@@ -57,6 +57,8 @@ def createKeyDB():
     conn.close()
 
 def pushKeys(uniqueID, pkeystr, skeystr, rkeystr=""):
+    print("pushing keys for new user")
+    print("uniqueID: ", uniqueID)
     #conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
     conn = psycopg2.connect(database = "crypto_db2", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
     print("Opened database successfully")
@@ -111,7 +113,8 @@ def createCSVtable(csvList, fileName):
 
     cur = conn.cursor()
     
-    csv_ = csvList #json.loads(csvJson)["content"]
+    csv_ = csvList #json.loads(csvJson)["content"] 
+    #csv_ = [['column' + str(i) for i in range(len(csv_) - 1)]] + csv_
 
     executestr = "CREATE TABLE " + fileName + " ("
     for item in csv_[0]:                #temporary woraround
@@ -145,7 +148,7 @@ def convertCSV(csvList, fileName):
         
         executestr = items + str(tuple(csv_[i])) + ";"
         print(executestr)
-        cur.execute(executestr);
+        cur.execute(executestr)
 
     conn.commit()
     print("Records created successfully")
@@ -153,6 +156,7 @@ def convertCSV(csvList, fileName):
 
 def retrieveData(columnNames, fileName):
     #conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
+    fileName = "\"{0}\"".format(fileName)
     conn = psycopg2.connect(database = "crypto_db2", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
     print("Opened database successfully")
 
@@ -164,6 +168,8 @@ def retrieveData(columnNames, fileName):
         rows = cur.fetchall()
         data[column] = [r[0] for r in rows]
     
+    print(type(data))
+    print(data.keys())
     return data 
 
 
