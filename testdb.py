@@ -4,7 +4,7 @@ import json
 import binascii
 
 def dropTable(tableName):
-    conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
+    conn = psycopg2.connect(database = "crypto_db2", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
     print("Opened database successfully")
 
     cur = conn.cursor()
@@ -28,8 +28,11 @@ def makebstr(fname, ctext):
 def loadctext(fname, bstr, context):
 
     xenc = Ciphertext()
-    b = bstr.encode('utf8')
-
+    print(bstr)
+    bstr = bstr.encode('utf8')
+    print(bstr)
+    b = binascii.unhexlify(bstr)
+    
     with open(fname, mode='wb') as file:
         file.write(b)
     
@@ -37,6 +40,24 @@ def loadctext(fname, bstr, context):
 
     return xenc
 
+def encryptCSV(csv, scale, encoder, encryptor):
+    csvEncrypted = [] #initialize column names (unencrypted?)
+
+    for row in csv:
+        encRow = []
+        for num in row: #convert rows to encrypted bytestrings
+            xplain = Plaintext()
+            encoder.encode(num, scale, xplain)
+
+            xenc = Ciphertext()
+            encryptor.encrypt(xplain, xenc)
+
+            encStr = makebstr('bstr', xenc)
+            encRow.append(encStr)
+
+        csvEncrypted.append(encRow)
+
+    return csvEncrypted
 
 def createKeyDB():
     #conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
@@ -106,20 +127,16 @@ def loadKey(fname, keystr, keytype, context):
     return kenc
 
 
-def createCSVtable(csvList, fileName):
+def createCSVtable(numCols, fileName):
     #conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
     conn = psycopg2.connect(database = "crypto_db2", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
     print("Opened database successfully")
 
     cur = conn.cursor()
-    
-    csv_ = csvList #json.loads(csvJson)["content"] 
-    #csv_ = [['column' + str(i) for i in range(len(csv_) - 1)]] + csv_
 
-    executestr = "CREATE TABLE " + fileName + " ("
-    for item in csv_[0]:                #temporary woraround
-        executestr += item
-        executestr += " TEXT,"
+    executestr = "CREATE TABLE \"{0}\" (".format(fileName)
+    for i in range(numCols):                #temporary woraround
+        executestr += "column" + str(i) + " TEXT,"
     
     executestr = executestr[:-1] + ");" #optimize, proabably better way to remove that last comma
 
@@ -130,24 +147,22 @@ def createCSVtable(csvList, fileName):
     conn.commit()
     conn.close()
 
-def convertCSV(csvList, fileName):
+def pushCSV(csv, fileName):
     #conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
     conn = psycopg2.connect(database = "crypto_db2", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
     print("Opened database successfully")
 
     cur = conn.cursor()
 
-    csv_ = csvList  #json.loads(csvJson)["content"]
+    items = "INSERT INTO \"{0}\" (".format(fileName)    #could be optimizeed
+    
+    for i in range(len(csv[0])):
+        items += "column" + str(i) + ","
 
-    items = "INSERT INTO " + fileName + " ("    #could be optimizeed
-    for item in csv_[0]:
-        items += item + ","
     items = items[:-1] + ") " + "VALUES "       #temporary workaround
 
-    for i in range(1, len(csv_)):
-        
-        executestr = items + str(tuple(csv_[i])) + ";"
-        print(executestr)
+    for row in csv:
+        executestr = items + str(tuple(row)) + ";"  #insert rows 1 by 1
         cur.execute(executestr)
 
     conn.commit()
@@ -164,7 +179,7 @@ def retrieveData(columnNames, fileName):
     data = {}
 
     for column in columnNames:  #can be optimized to retrieve all at once & parse that
-        cur.execute("SELECT " + column + " from " + fileName)
+        cur.execute("SELECT " + column + " from " + fileName + ";")
         rows = cur.fetchall()
         data[column] = [r[0] for r in rows]
     

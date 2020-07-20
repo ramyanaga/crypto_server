@@ -6,7 +6,26 @@ from datetime import datetime
 from seal import *
 from seal_helper_outer import *
 
+def createResultsDB():
+    #conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
+    conn = psycopg2.connect(database = "crypto_db2", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
+    print("Opened database successfully")
 
+    cur = conn.cursor()
+
+    cur.execute('''CREATE TABLE compute_results
+        (
+        user_id         TEXT     ,
+        document_id     TEXT     NOT NULL,
+        result          TEXT[]   NOT NULL,
+        file_columns    TEXT[]   NOT NULL,
+        compute_time    TIMESTAMP NOT NULL,
+        type            TEXT);''')
+
+    print("Result Table created successfully")
+
+    conn.commit()
+    conn.close()
 
 def storeComputeResult(documentId, fileColumns, results, timeStamp, computationType):
     print("in storeComputeResult")
@@ -17,16 +36,11 @@ def storeComputeResult(documentId, fileColumns, results, timeStamp, computationT
     for r in results:
         r.save("result_bytes_temp")
         with open("result_bytes_temp", "rb") as f:
-            result_hex = f.read().hex()
+            result_hex = binascii.hexlify(f.read()).decode('utf8')
             hexResults.append('{0}'.format(result_hex))
 
-    query = """INSERT INTO compute_results(document_id, result, file_columns, compute_time, type) \
+    query = """INSERT INTO compute_results (document_id, result, file_columns, compute_time, type) \
             VALUES (%s, %s, %s, %s, %s);"""
-    
-    fileColumnsStr = "("
-    for col in fileColumns:
-        fileColumnsStr += col + ","
-    fileColumnsStr += ")"
     
     documentId = "{0}".format(documentId)
     values = (documentId, hexResults, fileColumns, timeStamp, computationType) 
