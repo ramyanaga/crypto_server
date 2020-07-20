@@ -106,7 +106,6 @@ def create_app(test_config=None):
         #Extract User's ID
         #uniqueID = "AdrianTest" #request.args.get("user_id") #unsure if correct syntax
         body = json.loads(request.data.decode('utf-8'))
-
         uniqueID = body['user_id']
          
         #Generate Keys
@@ -158,12 +157,14 @@ def create_app(test_config=None):
         csvfile = json.loads(csvfile)
         print("type of csvfile: ", type(csvfile))
         print("type of csvfile[0]: ", type(csvfile[0]))
-        for i in range(1, len(csvfile)):
+        #for i in range(1, len(csvfile)):
+        for i in range(0, len(csvfile)):
             nums = csvfile[i]
             for j in range(len(nums)):
                 nums[j] = float(nums[j])
 
-        for i in range(1,len(csvfile)):
+        #for i in range(1,len(csvfile)):
+        for i in range(0, len(csvfile)):
             csvfile[i] = DoubleVector(csvfile[i])
 
         # Pull key from DB, and convert to PublicKey object
@@ -175,13 +176,16 @@ def create_app(test_config=None):
         encryptor = Encryptor(context, public_key) 
 
         #list of encrypted values or encrypted list? <-- Design Choice
-        csvEncrypted = [csvfile[0]] #initialize column names (unencrypted?)
+        #csvEncrypted = [csvfile[0]] #initialize column names (unencrypted?)
+        csvEncrypted = []
 
-        for i in range(1,len(csvfile)):
+        #for i in range(1,len(csvfile)):
+        for i in range(len(csvfile)):
             row = csvfile[i]
             encRow = []
 
             for num in row: #convert rows to encrypted bytestrings
+
                 xplain = Plaintext()
                 encoder.encode(num, scale, xplain)
 
@@ -192,7 +196,9 @@ def create_app(test_config=None):
                 encRow.append(encStr)
 
             csvEncrypted.append(encRow)
-
+    
+        print("IN ENCRYPT")
+        print("csvEncrypted[0]: ", csvEncrypted[0])
         #store encrypted csv file in table
         #csv_ = csvList #json.loads(csvJson)["content"] 
         print("len(csvEncrypted): ", len(csvEncrypted))
@@ -200,6 +206,7 @@ def create_app(test_config=None):
         fileName = "\"{0}\"".format(fileName)
         createCSVtable(csvEncrypted, fileName)
         convertCSV(csvEncrypted, fileName)
+        #print("csvEncrypted[0]: ", csvEncrypted[0])
 
         return json.dumps({"message": "Done with Encryption"})
 
@@ -209,7 +216,8 @@ def create_app(test_config=None):
         encryptedResults = []
         evaluator = Evaluator(context)
         #for col in encrypted_data:
-            
+        
+        print(columnNames)
         for col in columnNames:
             
             hexVals = encrypted_data[col]
