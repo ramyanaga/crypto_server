@@ -32,9 +32,6 @@ def create_app(test_config=None):
         os.makedirs(app.instance_path)
     except OSError:
         pass
-    
-    #secret_key_global = SecretKey()
-
 
     parms = EncryptionParameters(scheme_type.CKKS)
 
@@ -48,8 +45,13 @@ def create_app(test_config=None):
     encoder = CKKSEncoder(context)
     evaluator = Evaluator(context)
 
-    dropTable("compute_results")
     ramyatestdb.createResultsDB()
+
+    try:
+        dropTable("KEYS")
+    except psycopg2.errors.UndefinedTable:
+        pass
+    createKeyDB()
     
     # a simple page that says hello
     @app.route('/hello')
@@ -68,13 +70,11 @@ def create_app(test_config=None):
         cols = [a for a in args if a in string.ascii_uppercase]
         rows = [a for a in args if a not in string.ascii_uppercase]
         file_cols = ["column" + str(list(string.ascii_uppercase).index(c)) for c in cols]
-        print("file_cols: ", file_cols)
                
         document_id = requestBody['document_id']
         
         encrypted_data = retrieveData(file_cols, document_id)
 
-        computation_type = "AVERAGE"
         if computation_type == "ADD":
             encrypted_result, timestamp = add(encrypted_data, file_cols)
             ramyatestdb.storeComputeResult(document_id, file_cols, encrypted_result, timestamp, "ADD")
@@ -87,11 +87,7 @@ def create_app(test_config=None):
 
     @app.route('/generateKeys', methods=['GET', 'POST'])
     def generateKeys():
-        try:
-            dropTable("KEYS")
-        except psycopg2.errors.UndefinedTable:
-            pass
-        createKeyDB()
+        
         #Extract User's ID
         #uniqueID = "AdrianTest" #request.args.get("user_id") #unsure if correct syntax
         body = json.loads(request.data.decode('utf-8'))
@@ -113,7 +109,6 @@ def create_app(test_config=None):
         rkeystr = makebstr("rkey", relin_keys)
 
         #Push keys to database
-        print(uniqueID, type(pkeystr), type(skeystr), type(rkeystr))
         pushKeys(uniqueID, pkeystr, skeystr, rkeystr)
         
         return json.dumps({"message": "Keys Generated Succesfully"})
@@ -124,12 +119,8 @@ def create_app(test_config=None):
         requestBody = json.loads(request.data.decode('utf-8'))
         fileName = requestBody['document_id']
 
-        print("fileName: ", fileName)
-
         userID = requestBody['user_id']
         csvfile = requestBody['content']
-
-        print("CSV: ", csvfile)
         # Process input data
         
         csvfile = json.loads(csvfile)
@@ -146,9 +137,7 @@ def create_app(test_config=None):
 
         #list of encrypted values or encrypted list? <-- Design Choice
         csvEncrypted = encryptCSV(csvfile, scale, encoder, encryptor)
-
-        print("len(csvEncrypted): ", len(csvEncrypted))
-        dropTable("\"{0}\"".format(fileName))
+        # dropTable("\"{0}\"".format(fileName))
         createCSVtable(len(csvEncrypted[0]), fileName)
         pushCSV(csvEncrypted, fileName)
 
@@ -156,8 +145,7 @@ def create_app(test_config=None):
 
 
     @app.route('/add')
-    def add(encrypted_data, columnNames):
-        #context = SEALContext.Create(parms)
+    def add(encrypted_data, columnNames):\
         encryptedResults = []
 
         for col in columnNames:
@@ -176,7 +164,6 @@ def create_app(test_config=None):
 
     @app.route('/average')
     def average(encrypted_data, columnNames):
-        print("in average")
         
         encsums, timestamp = add(encrypted_data, columnNames)
         column_length = len(encrypted_data[columnNames[0]])
@@ -192,7 +179,6 @@ def create_app(test_config=None):
 
     @app.route('/decrypt', methods=['GET', 'POST'])
     def decrypt():
-
         requestBody = json.loads(request.data.decode('utf-8'))
         user_id = requestBody['user_id']
         document_id = requestBody['document_id']
@@ -204,7 +190,7 @@ def create_app(test_config=None):
 
         colEncryptedResultMap = ramyatestdb.getComputationResult(user_id, document_id)
         colDecryptedResultMap = {}
-        
+
         for col in colEncryptedResultMap:
             result = loadctext("encrypted_val_from_decrypt", colEncryptedResultMap[col], context)
 

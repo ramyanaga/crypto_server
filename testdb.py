@@ -28,9 +28,7 @@ def makebstr(fname, ctext):
 def loadctext(fname, bstr, context):
 
     xenc = Ciphertext()
-    print(bstr)
     bstr = bstr.encode('utf8')
-    print(bstr)
     b = binascii.unhexlify(bstr)
     
     with open(fname, mode='wb') as file:
@@ -183,43 +181,4 @@ def retrieveData(columnNames, fileName):
         rows = cur.fetchall()
         data[column] = [r[0] for r in rows]
     
-    print(type(data))
-    print(data.keys())
     return data 
-
-
-# with open("avg", mode='rb') as file:
-#         filecontent = file.read()
-#         fcontenth = binascii.hexlify(filecontent)
-
-# fsd = binascii.unhexlify(fcontenth)
-# fs = fcontenth.decode('utf8')
-
-# def playg(fileName):
-#     conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
-#     print("Opened database successfully")
-
-#     cur = conn.cursor()
-
-#     executestr = "CREATE TABLE " + fileName + " (bstr TEXT);" #optimize, proabably better way
-
-#     cur.execute(executestr)
-
-#     print("Table created successfully")
-
-#     conn.commit()
-#     conn.close()
-
-# def playg2(bstr, fileName):
-#     conn = psycopg2.connect(database = "postgres", user = "postgres", password = "", host = "127.0.0.1", port = "5432")
-#     print("Opened database successfully")
-
-#     cur = conn.cursor()
-
-#     executestr = "INSERT INTO " + fileName + " (bstr) VALUES ('{0}');".format(bstr)
-
-#     cur.execute(executestr);
-
-#     conn.commit()
-#     print("Records created successfully")
-#     conn.close()
